@@ -1,4 +1,7 @@
 import { el } from "./utils.js";
+import { db } from "./db.js";
+
+let datalistSeq = 0;
 
 let toastTimer = null;
 
@@ -49,6 +52,25 @@ export function field(labelText, inputEl) {
   wrap.appendChild(el("label", {}, labelText));
   wrap.appendChild(inputEl);
   return wrap;
+}
+
+// A text input with autocomplete suggestions drawn from past categories,
+// ranked by how often you've used them (most-used first).
+export function categoryField(labelText, kind, value = "") {
+  const listId = `cat-list-${++datalistSeq}`;
+  const wrap = el("div", { class: "field" });
+  wrap.appendChild(el("label", {}, labelText));
+  const input = el("input", { type: "text", value, list: listId, placeholder: "e.g. food, salary, rent", autocomplete: "off" });
+  const datalist = el("datalist", { id: listId });
+  for (const cat of db.categoryFrequency(kind)) {
+    datalist.appendChild(el("option", { value: cat }));
+  }
+  wrap.appendChild(input);
+  wrap.appendChild(datalist);
+  return { wrap, input, refresh: (newKind) => {
+    datalist.innerHTML = "";
+    for (const cat of db.categoryFrequency(newKind)) datalist.appendChild(el("option", { value: cat }));
+  } };
 }
 
 export function textInput(attrs = {}) {

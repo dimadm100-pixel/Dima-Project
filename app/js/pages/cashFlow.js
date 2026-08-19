@@ -1,6 +1,6 @@
 import { db } from "../db.js";
 import { fmtMoney, fmtMonth, fmtDate, todayStr, escapeHtml, svgBars } from "../utils.js";
-import { openSheet, closeSheet, confirmAction, field, numberInput, dateInput, textInput, selectInput, showToast } from "../ui.js";
+import { openSheet, closeSheet, confirmAction, field, numberInput, dateInput, textInput, selectInput, categoryField, showToast } from "../ui.js";
 
 let selectedMonth = todayStr().slice(0, 7);
 
@@ -103,13 +103,14 @@ function openBudgetEditor(id, onDone) {
   const typeSelect = selectInput([{ value: "expense", label: "Expense" }, { value: "income", label: "Income" }], { value: isIncome ? "income" : "expense" });
   const amountInput = numberInput({ value: item ? Math.abs(item.amount) : "" });
   const dateEl = dateInput({ value: item?.date || selectedMonth + "-01" });
-  const categoryInput = textInput({ value: item?.category || "" });
+  const { wrap: categoryWrap, input: categoryInput, refresh: refreshCategories } = categoryField("Category", isIncome ? "income" : "expense", item?.category || "");
   const noteInputEl = textInput({ value: item?.note || "" });
+  typeSelect.addEventListener("change", () => refreshCategories(typeSelect.value));
 
   form.appendChild(field("Type", typeSelect));
   form.appendChild(field("Amount (UZS)", amountInput));
   form.appendChild(field("Date", dateEl));
-  form.appendChild(field("Category", categoryInput));
+  form.appendChild(categoryWrap);
   form.appendChild(field("Note (optional)", noteInputEl));
 
   const saveBtn = document.createElement("button");

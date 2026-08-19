@@ -290,6 +290,49 @@ class Store {
     return { rows, plannedTotal, actualTotal };
   }
 
+  // Expense categories tracking over their monthly budget pace, for the current month.
+  budgetAlerts() {
+    const today = todayStr();
+    const monthKey = today.slice(0, 7);
+    const [y, m] = monthKey.split("-").map(Number);
+    const daysInMonth = new Date(Date.UTC(y, m, 0)).getUTCDate();
+    const dayOfMonth = Number(today.slice(8, 10));
+    const pacePct = dayOfMonth / daysInMonth;
+
+    const { rows } = this.monthComparison(monthKey);
+    const alerts = [];
+    for (const r of rows) {
+      if (r.planned >= 0) continue; // only budgeted expenses
+      const planned = Math.abs(r.planned);
+      const actual = Math.abs(Math.min(r.actual, 0));
+      if (planned === 0) continue;
+      const expectedByNow = planned * pacePct;
+      const overBy = actual - expectedByNow;
+      if (actual > planned) {
+        alerts.push({ category: r.category, planned, actual, overBy: actual - planned, severity: "over" });
+      } else if (overBy > planned * 0.1) {
+        alerts.push({ category: r.category, planned, actual, overBy, severity: "pace" });
+      }
+    }
+    alerts.sort((a, b) => (b.severity === "over") - (a.severity === "over") || b.overBy - a.overBy);
+    return alerts;
+  }
+
+  // Categories ranked by how often they're used, split by income/expense, for autocomplete.
+  categoryFrequency(kind) {
+    const counts = {};
+    const consider = (list) => {
+      for (const t of list) {
+        const isIncome = t.amount >= 0;
+        if ((kind === "income") !== isIncome) continue;
+        counts[t.category] = (counts[t.category] || 0) + 1;
+      }
+    };
+    consider(this.data.actuals);
+    consider(this.data.budget);
+    return Object.entries(counts).sort((a, b) => b[1] - a[1]).map(([cat]) => cat);
+  }
+
   // Projected balance trajectory combining actuals up to today, budget after.
   projectedTrajectory(toDate) {
     const points = [];

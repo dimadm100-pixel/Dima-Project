@@ -1,6 +1,6 @@
 import { db } from "../db.js";
 import { fmtMoney, fmtDate, escapeHtml } from "../utils.js";
-import { openSheet, closeSheet, confirmAction, field, numberInput, dateInput, textInput, selectInput, showToast } from "../ui.js";
+import { openSheet, closeSheet, confirmAction, field, numberInput, dateInput, textInput, selectInput, categoryField, showToast } from "../ui.js";
 import { openTransactionModal } from "./transactionForm.js";
 
 export function renderCashPosition(container) {
@@ -136,14 +136,15 @@ function openTxEditor(id, onDone) {
   const isIncome = tx.amount >= 0;
   const amountInput = numberInput({ value: Math.abs(tx.amount) });
   const dateEl = dateInput({ value: tx.date });
-  const categoryInput = textInput({ value: tx.category });
+  const { wrap: categoryWrap, input: categoryInput, refresh: refreshCategories } = categoryField("Category", isIncome ? "income" : "expense", tx.category);
   const noteInputEl = textInput({ value: tx.note || "" });
   const typeSelect = selectInput([{ value: "expense", label: "Expense" }, { value: "income", label: "Income" }], { value: isIncome ? "income" : "expense" });
+  typeSelect.addEventListener("change", () => refreshCategories(typeSelect.value));
 
   form.appendChild(field("Type", typeSelect));
   form.appendChild(field("Amount (UZS)", amountInput));
   form.appendChild(field("Date", dateEl));
-  form.appendChild(field("Category", categoryInput));
+  form.appendChild(categoryWrap);
   form.appendChild(field("Note", noteInputEl));
 
   const saveBtn = document.createElement("button");

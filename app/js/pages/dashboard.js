@@ -1,5 +1,5 @@
 import { db } from "../db.js";
-import { fmtMoney, fmtMoneyShort, fmtDate, todayStr, addDays, svgSparkline, escapeHtml } from "../utils.js";
+import { fmtMoney, fmtMoneyShort, fmtDate, fmtMonth, todayStr, addDays, svgSparkline, escapeHtml } from "../utils.js";
 
 export function renderDashboard(container) {
   const today = todayStr();
@@ -34,6 +34,8 @@ export function renderDashboard(container) {
   const creditEntries = db.data.creditRating;
   const latestCredit = creditEntries.length ? creditEntries[creditEntries.length - 1] : null;
 
+  const alerts = db.budgetAlerts().slice(0, 4);
+
   const goalCards = [
     goalMiniCard("Marriage", db.data.goals.marriage.reserveAnnualUSD * db.data.goals.marriage.fxRate, db.data.goals.marriage.savedSoFar, "#goals/marriage"),
     goalMiniCard("Home", homeTargetUZS(), db.data.goals.home.savedSoFar, "#goals/home"),
@@ -46,8 +48,12 @@ export function renderDashboard(container) {
 
     <div class="card hero-balance">
       <div class="label">Current cash balance</div>
-      <div class="amount">${fmtMoney(balance)}</div>
-      ${runwayDays !== null ? `<div class="sub" style="color:var(--text-dim); font-size:12px;">~${runwayDays} days of runway, based on ${runwaySource === "actual" ? "your last 30 days" : "your budget"}</div>` : ""}
+      <div class="amount" style="color:${balance < 0 ? "var(--danger)" : "var(--text)"};">${fmtMoney(balance)}</div>
+      ${balance < 0
+        ? `<div class="sub" style="color:var(--danger); font-size:12px;">Balance is negative</div>`
+        : runwayDays !== null
+          ? `<div class="sub" style="color:var(--text-dim); font-size:12px;">~${runwayDays} days of runway, based on ${runwaySource === "actual" ? "your last 30 days" : "your budget"}</div>`
+          : ""}
     </div>
 
     <div class="grid-2">
@@ -66,6 +72,24 @@ export function renderDashboard(container) {
       ${sparkHTML}
       <div class="sub" style="color:var(--text-dim); font-size:11px; margin-top:6px;">Solid line = actual to date, then budget projection</div>
     </div>
+
+    ${alerts.length ? `
+    <div class="card" id="budget-alerts-card" style="cursor:pointer;">
+      <h2>Budget watch — ${fmtMonth(thisMonth)}</h2>
+      ${alerts.map((a) => `
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+          <div>
+            <span class="badge ${a.severity === "over" ? "danger" : "warn"}">${a.severity === "over" ? "over budget" : "ahead of pace"}</span>
+            <div style="font-size:13px; margin-top:4px;">${escapeHtml(a.category)}</div>
+          </div>
+          <div style="text-align:right;">
+            <div style="font-size:13px; font-weight:700; color:${a.severity === "over" ? "var(--danger)" : "var(--warn)"};">+${fmtMoneyShort(a.overBy)}</div>
+            <div style="font-size:11px; color:var(--text-dim);">${fmtMoneyShort(a.actual)} of ${fmtMoneyShort(a.planned)}</div>
+          </div>
+        </div>
+      `).join("")}
+      <div class="sub" style="color:var(--text-dim); font-size:11px;">Tap to review in Cash Flow</div>
+    </div>` : ""}
 
     <div class="card">
       <h2>Goals</h2>
@@ -118,6 +142,8 @@ export function renderDashboard(container) {
   container.querySelectorAll("[data-goal-link]").forEach((n) => {
     n.addEventListener("click", () => { window.location.hash = n.dataset.goalLink; });
   });
+  const alertsCard = container.querySelector("#budget-alerts-card");
+  if (alertsCard) alertsCard.addEventListener("click", () => { window.location.hash = "#cashflow"; });
 }
 
 function goalMiniCard(name, target, saved, hash) {

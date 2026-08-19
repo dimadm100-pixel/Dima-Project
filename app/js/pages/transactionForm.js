@@ -1,9 +1,6 @@
 import { db } from "../db.js";
 import { el, todayStr } from "../utils.js";
-import { openSheet, closeSheet, field, textInput, numberInput, dateInput, selectInput, showToast } from "../ui.js";
-
-const QUICK_EXPENSE_CATEGORIES = ["food", "rent", "transport", "debt", "to parents", "1fit", "phone", "entertainment", "gift", "trip to home", "other"];
-const QUICK_INCOME_CATEGORIES = ["salary", "extra", "gift", "other"];
+import { openSheet, closeSheet, field, numberInput, dateInput, selectInput, categoryField, showToast } from "../ui.js";
 
 export function openTransactionModal({ onSaved } = {}) {
   let mode = "expense"; // expense = negative amount, income = positive
@@ -23,14 +20,10 @@ export function openTransactionModal({ onSaved } = {}) {
   const dateEl = dateInput({ value: todayStr() });
   form.appendChild(field("Date", dateEl));
 
-  const categorySelect = selectInput(QUICK_EXPENSE_CATEGORIES, {});
-  const categoryWrap = field("Category", categorySelect);
+  const { wrap: categoryWrap, input: categoryInput, refresh: refreshCategories } = categoryField("Category", "expense");
   form.appendChild(categoryWrap);
 
-  const customCategory = textInput({ placeholder: "Custom category (optional)" });
-  form.appendChild(field("Or type your own", customCategory));
-
-  const noteInput = textInput({ placeholder: "e.g. lunch with friends" });
+  const noteInput = el("input", { type: "text", placeholder: "e.g. lunch with friends" });
   form.appendChild(field("Note (optional)", noteInput));
 
   const accounts = db.data.accounts;
@@ -41,9 +34,8 @@ export function openTransactionModal({ onSaved } = {}) {
     mode = m;
     expenseBtn.classList.toggle("active", m === "expense");
     incomeBtn.classList.toggle("active", m === "income");
-    const opts = m === "expense" ? QUICK_EXPENSE_CATEGORIES : QUICK_INCOME_CATEGORIES;
-    categorySelect.innerHTML = "";
-    for (const c of opts) categorySelect.appendChild(el("option", { value: c }, c));
+    refreshCategories(m);
+    categoryInput.value = "";
   }
   expenseBtn.addEventListener("click", () => setMode("expense"));
   incomeBtn.addEventListener("click", () => setMode("income"));
@@ -55,7 +47,7 @@ export function openTransactionModal({ onSaved } = {}) {
       showToast("Enter an amount greater than 0");
       return;
     }
-    const category = (customCategory.value.trim() || categorySelect.value || "other").toLowerCase();
+    const category = (categoryInput.value.trim() || "other").toLowerCase();
     const amount = mode === "expense" ? -Math.abs(raw) : Math.abs(raw);
     db.addActual({
       date: dateEl.value || todayStr(),
