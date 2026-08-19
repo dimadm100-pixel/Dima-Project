@@ -29,7 +29,7 @@ export function renderSettings(container) {
       <button class="btn danger" id="reset-btn">Reset all data</button>
     </div>
 
-    <p style="text-align:center; color:var(--text-dim); font-size:11px; margin-top:20px;">Dima Finance Tracker · installed as a PWA · works offline</p>
+    <p style="text-align:center; color:var(--text-dim); font-size:11px; margin-top:20px;">Dilmurod Finance Tracker · installed as a PWA · works offline</p>
   `;
 
   container.querySelector("#edit-opening").addEventListener("click", () => {

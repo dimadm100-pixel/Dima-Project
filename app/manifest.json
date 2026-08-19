@@ -1,6 +1,6 @@
 {
-  "name": "Dima Finance Tracker",
-  "short_name": "Finance",
+  "name": "Dilmurod Finance Tracker",
+  "short_name": "Dilmurod",
   "description": "Personal finance tracker: cash flow, cash position, P&L, balance sheet, goals and targets.",
   "start_url": "./index.html",
   "scope": "./",

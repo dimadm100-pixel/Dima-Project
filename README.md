@@ -1,4 +1,4 @@
-# Dima Finance Tracker
+# Dilmurod Finance Tracker
 
 A personal finance tracking PWA (installable on your phone), built from the original "Personal Finance" Excel workbook. Lives entirely in `/app` — no build step, no server-side code, no external dependencies.
 
