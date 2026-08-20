@@ -5,6 +5,7 @@ import { renderCashFlow } from "./pages/cashFlow.js";
 import { renderAccCashFlow } from "./pages/accCashFlow.js";
 import { renderInsights } from "./pages/insights.js";
 import { renderAssistant } from "./pages/assistant.js";
+import { renderPlanner } from "./pages/planner.js";
 import { renderSearch } from "./pages/search.js";
 import { renderPnl } from "./pages/pnl.js";
 import { renderBalanceSheet } from "./pages/balanceSheet.js";
@@ -20,10 +21,11 @@ import { openSheet, closeSheet } from "./ui.js";
 // else lives on the More sheet (and the full desktop nav).
 const ROUTES = [
   { key: "dashboard", label: "Home", icon: "🏠", render: renderDashboard, primary: true },
-  { key: "assistant", label: "Assistant", icon: "🤖", render: renderAssistant, primary: true },
+  { key: "planner", label: "Planner", icon: "🧭", render: renderPlanner, primary: true },
   { key: "insights", label: "Insights", icon: "💡", render: renderInsights, primary: true },
   { key: "cashposition", label: "Position", icon: "💵", render: renderCashPosition, primary: true },
   { key: "cashflow", label: "Cash Flow", icon: "📅", render: renderCashFlow, primary: true },
+  { key: "assistant", label: "Assistant", icon: "🤖", render: renderAssistant },
   { key: "search", label: "Search", icon: "🔍", render: renderSearch },
   { key: "acccashflow", label: "Acc. Cash", icon: "🧮", render: renderAccCashFlow },
   { key: "pnl", label: "P&L", icon: "📈", render: renderPnl },
