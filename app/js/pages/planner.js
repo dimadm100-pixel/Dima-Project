@@ -39,6 +39,9 @@ export function renderPlanner(container) {
 
 // ------------------------------------------------------------ build budget
 
+// Edits the user makes to the learned amounts, kept while the page is open.
+let overrides = {};
+
 function renderBudgetTab(body, container) {
   const defaultStart = addMonths(todayStr().slice(0, 7), 1);
   const patterns = buildBudgetPlan({ startMonth: defaultStart, monthCount: 1 }).patterns;
@@ -50,21 +53,48 @@ function renderBudgetTab(body, container) {
     return;
   }
 
+  const valueFor = (p) => {
+    const o = overrides[p.category];
+    return o && o.monthlyTotal !== undefined ? o.monthlyTotal : Math.round(p.monthlyTotal);
+  };
+  const dayFor = (p) => {
+    const o = overrides[p.category];
+    return o && o.typicalDay !== undefined ? o.typicalDay : p.typicalDay;
+  };
+  const enabledFor = (p) => !(overrides[p.category] && overrides[p.category].enabled === false);
+
   body.innerHTML = `
     <div class="card">
-      <h2>What I learned from your history</h2>
-      <p style="color:var(--text-dim); font-size:12px; margin-top:-6px;">Median month per category — the middle month, so one unusual month doesn't skew the plan.</p>
-      <table>
-        <thead><tr><th>Category</th><th class="num">Typical month</th><th class="num">Pattern</th></tr></thead>
-        <tbody>
-          ${patterns.map((p) => `
-            <tr>
-              <td>${escapeHtml(p.category)}</td>
-              <td class="num ${p.monthlyTotal >= 0 ? "amt-pos" : "amt-neg"}">${fmtMoney(p.monthlyTotal)}</td>
-              <td class="num" style="font-size:11px; color:var(--text-dim);">${p.perMonthCount > 3 ? "spread weekly" : `day ${p.typicalDay}`}</td>
-            </tr>`).join("")}
-        </tbody>
-      </table>
+      <h2>Your monthly plan</h2>
+      <p style="color:var(--text-dim); font-size:12px; margin-top:-6px;">
+        Starting figures are your median month — the middle one, so a single odd month doesn't skew things.
+        <strong style="color:var(--text);">Change anything here</strong> and it applies to every month generated.
+      </p>
+      <div id="pattern-rows">
+        ${patterns.map((p) => `
+          <div class="pattern-row" data-cat="${escapeHtml(p.category)}" style="padding:10px 0; border-bottom:1px solid var(--border); ${enabledFor(p) ? "" : "opacity:0.4;"}">
+            <div style="display:flex; align-items:center; gap:10px; margin-bottom:8px;">
+              <input type="checkbox" data-enabled="${escapeHtml(p.category)}" ${enabledFor(p) ? "checked" : ""}>
+              <span style="font-size:14px; font-weight:600; flex:1;">${escapeHtml(p.category)}</span>
+              <span style="font-size:11px; color:var(--text-dim);">${p.perMonthCount > 3 ? "spread weekly" : "one entry"}</span>
+            </div>
+            <div style="display:flex; gap:8px;">
+              <div style="flex:2;">
+                <label style="font-size:11px; color:var(--text-dim);">Amount / month</label>
+                <input type="number" data-amount="${escapeHtml(p.category)}" value="${valueFor(p)}" step="10000">
+              </div>
+              <div style="flex:1;">
+                <label style="font-size:11px; color:var(--text-dim);">Day</label>
+                <input type="number" data-day="${escapeHtml(p.category)}" value="${dayFor(p)}" min="1" max="28" ${p.perMonthCount > 3 ? "disabled" : ""}>
+              </div>
+            </div>
+          </div>`).join("")}
+      </div>
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-top:14px;">
+        <span style="font-size:13px; color:var(--text-dim);">Net per month</span>
+        <strong id="net-preview" style="font-size:16px;"></strong>
+      </div>
+      <button class="btn secondary small" id="reset-overrides" style="margin-top:12px;">Reset to my history</button>
     </div>
 
     <div class="card">
@@ -81,11 +111,55 @@ function renderBudgetTab(body, container) {
     </div>
   `;
 
+  const updateNet = () => {
+    let net = 0;
+    for (const p of patterns) {
+      if (!enabledFor(p)) continue;
+      net += Number(valueFor(p)) || 0;
+    }
+    const slot = body.querySelector("#net-preview");
+    slot.textContent = fmtMoney(net);
+    slot.style.color = net >= 0 ? "var(--accent)" : "var(--danger)";
+  };
+
+  const ensure = (cat) => (overrides[cat] = overrides[cat] || {});
+
+  body.querySelectorAll("[data-amount]").forEach((input) => {
+    input.addEventListener("input", () => {
+      ensure(input.dataset.amount).monthlyTotal = Number(input.value) || 0;
+      updateNet();
+    });
+  });
+  body.querySelectorAll("[data-day]").forEach((input) => {
+    input.addEventListener("input", () => {
+      ensure(input.dataset.day).typicalDay = Math.min(28, Math.max(1, Number(input.value) || 1));
+    });
+  });
+  body.querySelectorAll("[data-enabled]").forEach((box) => {
+    box.addEventListener("change", () => {
+      ensure(box.dataset.enabled).enabled = box.checked;
+      const row = body.querySelector(`.pattern-row[data-cat="${CSS.escape(box.dataset.enabled)}"]`);
+      if (row) row.style.opacity = box.checked ? "" : "0.4";
+      updateNet();
+    });
+  });
+  body.querySelector("#reset-overrides").addEventListener("click", () => {
+    overrides = {};
+    renderPlanner(container);
+    showToast("Reset to your history");
+  });
+
+  updateNet();
+
   body.querySelector("#preview-budget").addEventListener("click", () => {
     const startMonth = body.querySelector("#start-month").value || defaultStart;
     const monthCount = Math.max(1, Math.min(36, parseInt(body.querySelector("#month-count").value) || 12));
     const replaceExisting = body.querySelector("#replace-existing").checked;
-    const plan = buildBudgetPlan({ startMonth, monthCount, replaceExisting });
+    const plan = buildBudgetPlan({ startMonth, monthCount, replaceExisting, overrides });
+    if (!plan.operations.some((o) => o.action === "add_budget")) {
+      showToast("Nothing enabled to generate");
+      return;
+    }
     showProposal(container, {
       title: `Budget for ${fmtMonth(plan.months[0])} – ${fmtMonth(plan.months[plan.months.length - 1])}`,
       summary: summarizePlan(plan),

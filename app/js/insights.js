@@ -263,7 +263,8 @@ export function buildAIContext() {
       cashHoles: db.cashHoles(),
       lowestProjected: db.budgetTrajectory().reduce((min, p) => (p.balance < min.balance ? p : min), { balance: Infinity, date: null })
     },
-    accounts: db.data.accounts.map((a) => ({ name: a.name, balance: a.balance })),
+    accounts: db.accountsWithBalances().map((a) => ({ name: a.name, balance: a.balance })),
+    unassignedTransactionCount: db.unassignedTransactions().length,
     goals: {
       marriage: { targetUZS: db.data.goals.marriage.reserveAnnualUSD * db.data.goals.marriage.fxRate, saved: db.data.goals.marriage.savedSoFar, monthlyLifestyleCost: db.data.goals.marriage.rows.reduce((s, r) => s + r.costUZS, 0) },
       home: { cheapestInitialUZS: cheapestHomeInitial(), saved: db.data.goals.home.savedSoFar },

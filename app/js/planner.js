@@ -24,12 +24,28 @@ const MIN_MEANINGFUL_SAVING = 50000; // UZS/month — below this, not worth flag
  * projected cash curve stays realistic; occasional ones (rent, salary) land
  * on the day of month they usually land on.
  */
-export function buildBudgetPlan({ startMonth, monthCount = 12, replaceExisting = false } = {}) {
+export function buildBudgetPlan({ startMonth, monthCount = 12, replaceExisting = false, overrides = null } = {}) {
   const months = [];
   let mk = startMonth || addMonths(todayStr().slice(0, 7), 1);
   for (let i = 0; i < monthCount; i++) { months.push(mk); mk = addMonths(mk, 1); }
 
-  const patterns = categoryPatterns();
+  // Learned patterns are only a starting point -- the user can retune any
+  // amount or drop a category entirely before anything is generated.
+  let patterns = categoryPatterns();
+  if (overrides) {
+    patterns = patterns
+      .map((p) => {
+        const o = overrides[p.category];
+        if (!o) return p;
+        if (o.enabled === false) return null;
+        return {
+          ...p,
+          monthlyTotal: o.monthlyTotal !== undefined ? Number(o.monthlyTotal) : p.monthlyTotal,
+          typicalDay: o.typicalDay !== undefined ? Math.min(28, Math.max(1, Number(o.typicalDay))) : p.typicalDay
+        };
+      })
+      .filter(Boolean);
+  }
   const recurringCats = new Set(db.data.recurring.filter((r) => r.active).map((r) => r.category));
   const operations = [];
 

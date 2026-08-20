@@ -115,17 +115,21 @@ export const SEED_DATA = {
 
   // Manually-reconciled snapshot of where money physically sits.
   // Not auto-linked to the ledger -- update it occasionally, like the original sheet.
+  // Balances are derived: openingBalance plus everything assigned to the
+  // account, plus transfers in and out.
   accounts: [
-    {"id":"acc-card1","name":"Card 1","number":"8408","balance":0},
-    {"id":"acc-card2","name":"Card 2","number":"5204","balance":30000},
-    {"id":"acc-card3","name":"Card 3","number":"1231","balance":0},
-    {"id":"acc-card4","name":"Card 4*","number":"0602","balance":0},
-    {"id":"acc-card5","name":"Card 5","number":"9651","balance":0},
-    {"id":"acc-card6","name":"Card 6","number":"6857","balance":0},
-    {"id":"acc-card7","name":"Card 7","number":"5868","balance":70000},
-    {"id":"acc-cash","name":"Cash","number":"","balance":100000},
-    {"id":"acc-invest","name":"Investment","number":"","balance":0}
+    {"id":"acc-card1","name":"Card 1","number":"8408","openingBalance":0},
+    {"id":"acc-card2","name":"Card 2","number":"5204","openingBalance":30000},
+    {"id":"acc-card3","name":"Card 3","number":"1231","openingBalance":0},
+    {"id":"acc-card4","name":"Card 4*","number":"0602","openingBalance":0},
+    {"id":"acc-card5","name":"Card 5","number":"9651","openingBalance":0},
+    {"id":"acc-card6","name":"Card 6","number":"6857","openingBalance":0},
+    {"id":"acc-card7","name":"Card 7","number":"5868","openingBalance":70000},
+    {"id":"acc-cash","name":"Cash","number":"","openingBalance":100000},
+    {"id":"acc-invest","name":"Investment","number":"","openingBalance":0}
   ],
+
+  transfers: [],
 
   goals: {
     marriage: {

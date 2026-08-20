@@ -20,11 +20,11 @@ import { openSheet, closeSheet } from "./ui.js";
 // `primary` decides what gets a slot in the phone's bottom bar; everything
 // else lives on the More sheet (and the full desktop nav).
 const ROUTES = [
+  { key: "cashposition", label: "Position", icon: "💵", render: renderCashPosition, primary: true },
+  { key: "cashflow", label: "Cash Flow", icon: "📅", render: renderCashFlow, primary: true },
   { key: "dashboard", label: "Home", icon: "🏠", render: renderDashboard, primary: true },
   { key: "planner", label: "Planner", icon: "🧭", render: renderPlanner, primary: true },
   { key: "insights", label: "Insights", icon: "💡", render: renderInsights, primary: true },
-  { key: "cashposition", label: "Position", icon: "💵", render: renderCashPosition, primary: true },
-  { key: "cashflow", label: "Cash Flow", icon: "📅", render: renderCashFlow, primary: true },
   { key: "assistant", label: "Assistant", icon: "🤖", render: renderAssistant },
   { key: "search", label: "Search", icon: "🔍", render: renderSearch },
   { key: "acccashflow", label: "Acc. Cash", icon: "🧮", render: renderAccCashFlow },
@@ -78,7 +78,7 @@ function currentRoute() {
 
 function render() {
   const { key, sub } = currentRoute();
-  const route = ROUTES.find((r) => r.key === key) || ROUTES[0];
+  const route = ROUTES.find((r) => r.key === key) || ROUTES.find((r) => r.key === "dashboard");
   view.innerHTML = "";
   route.render(view, sub);
   document.querySelectorAll("[data-nav]").forEach((a) => {

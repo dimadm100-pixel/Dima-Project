@@ -17,9 +17,18 @@ function migrate(data) {
   if (!Array.isArray(data.recurring)) data.recurring = [];
   if (!Array.isArray(data.specifications)) data.specifications = [];
   if (!Array.isArray(data.creditRating)) data.creditRating = [];
+  if (!Array.isArray(data.transfers)) data.transfers = [];
   if (!data.dismissed || typeof data.dismissed !== "object") data.dismissed = {};
   if (!data.meta) data.meta = { openingBalance: 0, openingDate: todayStr(), currency: "UZS" };
   if (!data.balanceSheetExtra) data.balanceSheetExtra = { investments: 0, otherAssets: [], liabilities: [] };
+
+  // Account balances used to be typed in by hand. They're now derived from a
+  // starting balance plus assigned activity, so the old figure becomes the
+  // opening balance and everything after it is computed.
+  for (const a of data.accounts || []) {
+    if (a.openingBalance === undefined) a.openingBalance = Number(a.balance) || 0;
+    delete a.balance;
+  }
   return data;
 }
 
@@ -110,18 +119,89 @@ class Store {
     const a = this.data.accounts.find((x) => x.id === id);
     if (!a) return;
     Object.assign(a, patch);
-    if (patch.balance !== undefined) a.balance = Number(patch.balance);
+    if (patch.openingBalance !== undefined) a.openingBalance = Number(patch.openingBalance);
     this.save();
   }
 
   addAccount(acc) {
-    this.data.accounts.push({ id: uid("acc"), name: acc.name, number: acc.number || "", balance: Number(acc.balance) || 0 });
+    this.data.accounts.push({
+      id: uid("acc"),
+      name: acc.name,
+      number: acc.number || "",
+      openingBalance: Number(acc.openingBalance) || 0
+    });
     this.save();
+  }
+
+  // Refuses to orphan history: an account still holding activity must be
+  // emptied or reassigned first, or its transactions would silently detach.
+  accountUsage(id) {
+    const txns = this.data.actuals.filter((t) => t.accountId === id).length;
+    const transfers = this.data.transfers.filter((t) => t.fromAccountId === id || t.toAccountId === id).length;
+    return { txns, transfers, total: txns + transfers };
   }
 
   deleteAccount(id) {
     this.data.accounts = this.data.accounts.filter((x) => x.id !== id);
     this.save();
+  }
+
+  reassignAccount(fromId, toId) {
+    for (const t of this.data.actuals) if (t.accountId === fromId) t.accountId = toId;
+    for (const t of this.data.transfers) {
+      if (t.fromAccountId === fromId) t.fromAccountId = toId;
+      if (t.toAccountId === fromId) t.toAccountId = toId;
+    }
+    this.save();
+  }
+
+  // Current balance of one account: where it started, plus everything
+  // assigned to it, plus transfers in and out.
+  accountBalance(id) {
+    const acc = this.data.accounts.find((a) => a.id === id);
+    if (!acc) return 0;
+    let bal = Number(acc.openingBalance) || 0;
+    for (const t of this.data.actuals) if (t.accountId === id) bal += t.amount;
+    for (const t of this.data.transfers) {
+      if (t.fromAccountId === id) bal -= t.amount;
+      if (t.toAccountId === id) bal += t.amount;
+    }
+    return bal;
+  }
+
+  accountsWithBalances() {
+    return this.data.accounts.map((a) => ({ ...a, balance: this.accountBalance(a.id) }));
+  }
+
+  // Transactions with no account attached. Their total is exactly the gap
+  // between the ledger and the sum of the accounts.
+  unassignedTransactions() {
+    const ids = new Set(this.data.accounts.map((a) => a.id));
+    return this.data.actuals.filter((t) => !t.accountId || !ids.has(t.accountId));
+  }
+
+  // ---------- Transfers ----------
+  addTransfer(t) {
+    this.data.transfers.push({
+      id: uid("trf"),
+      date: t.date,
+      amount: Math.abs(Number(t.amount)),
+      fromAccountId: t.fromAccountId,
+      toAccountId: t.toAccountId,
+      note: t.note || ""
+    });
+    this.data.transfers.sort((a, b) => a.date.localeCompare(b.date));
+    this.save();
+  }
+
+  deleteTransfer(id) {
+    this.data.transfers = this.data.transfers.filter((x) => x.id !== id);
+    this.save();
+  }
+
+  accountName(id) {
+    const a = this.data.accounts.find((x) => x.id === id);
+    return a ? a.name : "—";
   }
 
   // ---------- Goals ----------
@@ -428,7 +508,7 @@ class Store {
   }
 
   accountsTotal() {
-    return this.data.accounts.reduce((s, a) => s + a.balance, 0);
+    return this.data.accounts.reduce((s, a) => s + this.accountBalance(a.id), 0);
   }
 
   // Budget vs actual for a given month "YYYY-MM"
