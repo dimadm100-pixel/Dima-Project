@@ -1,5 +1,52 @@
 import { db } from "../db.js";
 import { fmtMoney, fmtMoneyShort, fmtDate, fmtMonth, todayStr, addDays, svgSparkline, escapeHtml } from "../utils.js";
+import { showToast } from "../ui.js";
+import { analyze } from "../insights.js";
+
+// The handful of entries you log most often, so a repeat is one tap.
+function quickRepeats() {
+  const counts = {};
+  for (const t of db.data.actuals) {
+    if (t.amount >= 0) continue;
+    const key = `${t.category}|${t.amount}`;
+    counts[key] = counts[key] || { count: 0, category: t.category, amount: t.amount, last: t.date };
+    counts[key].count++;
+    if (t.date > counts[key].last) counts[key].last = t.date;
+  }
+  return Object.values(counts)
+    .sort((a, b) => b.count - a.count || b.last.localeCompare(a.last))
+    .slice(0, 6);
+}
+
+// Reminders surface when you open the app; there is no server to push them.
+function reminders() {
+  const out = [];
+  const today = todayStr();
+  const dismissed = db.data.dismissed || {};
+
+  for (const f of analyze()) {
+    if (f.kind !== "overspending" && f.kind !== "cash_hole") continue;
+    if (f.severity === "low") continue;
+    if (dismissed[f.id] === today) continue;
+    out.push({ id: f.id, title: f.title, detail: f.detail, severity: f.severity });
+  }
+
+  // Weekly digest: offered once per ISO week, on or after Sunday.
+  const week = isoWeekKey(today);
+  if (dismissed[`digest-${week}`] !== "seen" && new Date(today + "T00:00:00Z").getUTCDay() === 0) {
+    out.push({ id: `digest-${week}`, title: "Your weekly summary is ready", detail: "See how last week went across income, spending and goals.", severity: "low", link: "#insights" });
+  }
+  return out.slice(0, 3);
+}
+
+function isoWeekKey(dateStr) {
+  const d = new Date(dateStr + "T00:00:00Z");
+  const day = d.getUTCDay() || 7;
+  d.setUTCDate(d.getUTCDate() + 4 - day);
+  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+  const week = Math.ceil(((d - yearStart) / 86400000 + 1) / 7);
+  return `${d.getUTCFullYear()}-W${week}`;
+}
 
 export function renderDashboard(container) {
   const today = todayStr();
@@ -35,6 +82,8 @@ export function renderDashboard(container) {
   const latestCredit = creditEntries.length ? creditEntries[creditEntries.length - 1] : null;
 
   const alerts = db.budgetAlerts().slice(0, 4);
+  const activeReminders = reminders();
+  const repeats = quickRepeats();
 
   const goalCards = [
     goalMiniCard("Marriage", db.data.goals.marriage.reserveAnnualUSD * db.data.goals.marriage.fxRate, db.data.goals.marriage.savedSoFar, "#goals/marriage"),
@@ -45,6 +94,29 @@ export function renderDashboard(container) {
   container.innerHTML = `
     <div class="page-title">Dashboard</div>
     <p class="page-sub">${fmtDate(today)}</p>
+
+    ${activeReminders.map((r) => `
+      <div class="card" style="border-color:${r.severity === "high" ? "var(--danger)" : "var(--warn)"}; display:flex; gap:12px; align-items:flex-start;">
+        <div style="flex:1;">
+          <div style="font-size:14px; font-weight:600;">${escapeHtml(r.title)}</div>
+          <div style="font-size:12px; color:var(--text-dim); margin-top:4px;">${escapeHtml(r.detail)}</div>
+          ${r.link ? `<button class="mini-btn" style="margin-top:8px;" data-reminder-link="${r.link}">Open</button>` : ""}
+        </div>
+        <button class="mini-btn" data-dismiss="${escapeHtml(r.id)}">✕</button>
+      </div>
+    `).join("")}
+
+    ${repeats.length ? `
+    <div class="card">
+      <h2>Log again</h2>
+      <div class="chip-row">
+        ${repeats.map((r) => `
+          <button class="chip" data-repeat='${escapeHtml(JSON.stringify({ category: r.category, amount: r.amount }))}'>
+            ${escapeHtml(r.category)} · ${fmtMoneyShort(r.amount)}
+          </button>`).join("")}
+      </div>
+      <div class="sub" style="color:var(--text-dim); font-size:11px; margin-top:8px;">One tap logs it for today.</div>
+    </div>` : ""}
 
     <div class="card hero-balance">
       <div class="label">Current cash balance</div>
@@ -144,6 +216,28 @@ export function renderDashboard(container) {
   });
   const alertsCard = container.querySelector("#budget-alerts-card");
   if (alertsCard) alertsCard.addEventListener("click", () => { window.location.hash = "#cashflow"; });
+
+  container.querySelectorAll("[data-repeat]").forEach((chip) => {
+    chip.addEventListener("click", () => {
+      const { category, amount } = JSON.parse(chip.dataset.repeat);
+      db.addActual({ date: todayStr(), amount, category, note: "" });
+      showToast(`Logged ${category}`);
+      renderDashboard(container);
+    });
+  });
+
+  container.querySelectorAll("[data-dismiss]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const id = btn.dataset.dismiss;
+      db.data.dismissed[id] = id.startsWith("digest-") ? "seen" : todayStr();
+      db.save();
+      renderDashboard(container);
+    });
+  });
+
+  container.querySelectorAll("[data-reminder-link]").forEach((btn) => {
+    btn.addEventListener("click", () => { window.location.hash = btn.dataset.reminderLink; });
+  });
 }
 
 function goalMiniCard(name, target, saved, hash) {

@@ -3,6 +3,9 @@ import { renderDashboard } from "./pages/dashboard.js";
 import { renderCashPosition } from "./pages/cashPosition.js";
 import { renderCashFlow } from "./pages/cashFlow.js";
 import { renderAccCashFlow } from "./pages/accCashFlow.js";
+import { renderInsights } from "./pages/insights.js";
+import { renderAssistant } from "./pages/assistant.js";
+import { renderSearch } from "./pages/search.js";
 import { renderPnl } from "./pages/pnl.js";
 import { renderBalanceSheet } from "./pages/balanceSheet.js";
 import { renderGoals } from "./pages/goals.js";
@@ -11,11 +14,17 @@ import { renderSpecifications } from "./pages/specifications.js";
 import { renderCreditRating } from "./pages/creditRating.js";
 import { renderSettings } from "./pages/settings.js";
 import { openTransactionModal } from "./pages/transactionForm.js";
+import { openSheet, closeSheet } from "./ui.js";
 
+// `primary` decides what gets a slot in the phone's bottom bar; everything
+// else lives on the More sheet (and the full desktop nav).
 const ROUTES = [
-  { key: "dashboard", label: "Home", icon: "🏠", render: renderDashboard },
-  { key: "cashposition", label: "Position", icon: "💵", render: renderCashPosition },
-  { key: "cashflow", label: "Cash Flow", icon: "📅", render: renderCashFlow },
+  { key: "dashboard", label: "Home", icon: "🏠", render: renderDashboard, primary: true },
+  { key: "assistant", label: "Assistant", icon: "🤖", render: renderAssistant, primary: true },
+  { key: "insights", label: "Insights", icon: "💡", render: renderInsights, primary: true },
+  { key: "cashposition", label: "Position", icon: "💵", render: renderCashPosition, primary: true },
+  { key: "cashflow", label: "Cash Flow", icon: "📅", render: renderCashFlow, primary: true },
+  { key: "search", label: "Search", icon: "🔍", render: renderSearch },
   { key: "acccashflow", label: "Acc. Cash", icon: "🧮", render: renderAccCashFlow },
   { key: "pnl", label: "P&L", icon: "📈", render: renderPnl },
   { key: "balancesheet", label: "Balance", icon: "⚖️", render: renderBalanceSheet },
@@ -31,9 +40,32 @@ const bottomNav = document.getElementById("bottom-nav");
 const desktopNav = document.getElementById("desktop-nav");
 
 function buildNav() {
-  const navItems = ROUTES.filter((r) => r.key !== "settings");
-  bottomNav.innerHTML = navItems.map((r) => `<a href="#${r.key}" data-nav="${r.key}"><span class="nav-icon">${r.icon}</span>${r.label}</a>`).join("");
+  const primary = ROUTES.filter((r) => r.primary);
+  bottomNav.innerHTML =
+    primary.map((r) => `<a href="#${r.key}" data-nav="${r.key}"><span class="nav-icon">${r.icon}</span>${r.label}</a>`).join("") +
+    `<a href="#" id="more-nav"><span class="nav-icon">⋯</span>More</a>`;
   desktopNav.innerHTML = ROUTES.map((r) => `<a href="#${r.key}" data-nav="${r.key}">${r.icon} ${r.label}</a>`).join("");
+
+  bottomNav.querySelector("#more-nav").addEventListener("click", (e) => {
+    e.preventDefault();
+    openMoreSheet();
+  });
+}
+
+function openMoreSheet() {
+  const rest = ROUTES.filter((r) => !r.primary);
+  const wrap = document.createElement("div");
+  wrap.innerHTML = rest.map((r) => `
+    <button class="btn secondary" style="justify-content:flex-start; margin-bottom:8px;" data-go="${r.key}">
+      ${r.icon}&nbsp;&nbsp;${r.label}
+    </button>`).join("");
+  wrap.querySelectorAll("[data-go]").forEach((b) => {
+    b.addEventListener("click", () => {
+      closeSheet();
+      window.location.hash = `#${b.dataset.go}`;
+    });
+  });
+  openSheet("More", wrap);
 }
 
 function currentRoute() {

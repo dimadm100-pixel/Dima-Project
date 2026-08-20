@@ -1,4 +1,4 @@
-const CACHE_NAME = "dilmurod-finance-v4";
+const CACHE_NAME = "dilmurod-finance-v5";
 const ASSETS = [
   "./",
   "./index.html",
@@ -9,6 +9,11 @@ const ASSETS = [
   "./js/seed.js",
   "./js/utils.js",
   "./js/ui.js",
+  "./js/ai.js",
+  "./js/insights.js",
+  "./js/pages/insights.js",
+  "./js/pages/assistant.js",
+  "./js/pages/search.js",
   "./js/pages/dashboard.js",
   "./js/pages/cashPosition.js",
   "./js/pages/cashFlow.js",

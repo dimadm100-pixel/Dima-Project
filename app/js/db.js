@@ -11,6 +11,18 @@ function uid(prefix = "id") {
   return `${prefix}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
 }
 
+// Adds fields introduced after the first release so data saved by an older
+// version of the app keeps working instead of throwing on a missing key.
+function migrate(data) {
+  if (!Array.isArray(data.recurring)) data.recurring = [];
+  if (!Array.isArray(data.specifications)) data.specifications = [];
+  if (!Array.isArray(data.creditRating)) data.creditRating = [];
+  if (!data.dismissed || typeof data.dismissed !== "object") data.dismissed = {};
+  if (!data.meta) data.meta = { openingBalance: 0, openingDate: todayStr(), currency: "UZS" };
+  if (!data.balanceSheetExtra) data.balanceSheetExtra = { investments: 0, otherAssets: [], liabilities: [] };
+  return data;
+}
+
 class Store {
   constructor() {
     this.data = this._load();
@@ -20,11 +32,11 @@ class Store {
   _load() {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) return JSON.parse(raw);
+      if (raw) return migrate(JSON.parse(raw));
     } catch (e) {
       console.error("Failed to load stored data, falling back to seed.", e);
     }
-    return clone(SEED_DATA);
+    return migrate(clone(SEED_DATA));
   }
 
   save() {
@@ -216,6 +228,156 @@ class Store {
     this.data.meta.openingBalance = Number(amount);
     if (date) this.data.meta.openingDate = date;
     this.save();
+  }
+
+  // ---------- Recurring transactions ----------
+  addRecurring(r) {
+    this.data.recurring.push({
+      id: uid("rec"),
+      name: r.name || r.category,
+      category: r.category,
+      amount: Number(r.amount),
+      dayOfMonth: Math.min(28, Math.max(1, Number(r.dayOfMonth) || 1)),
+      active: r.active !== false,
+      note: r.note || ""
+    });
+    this.save();
+  }
+
+  updateRecurring(id, patch) {
+    const r = this.data.recurring.find((x) => x.id === id);
+    if (!r) return;
+    Object.assign(r, patch);
+    if (patch.amount !== undefined) r.amount = Number(patch.amount);
+    if (patch.dayOfMonth !== undefined) r.dayOfMonth = Math.min(28, Math.max(1, Number(patch.dayOfMonth) || 1));
+    this.save();
+  }
+
+  deleteRecurring(id) {
+    this.data.recurring = this.data.recurring.filter((x) => x.id !== id);
+    this.save();
+  }
+
+  // Writes each active recurring item into the budget for the given months,
+  // skipping any month where that item is already budgeted (so it's safe to
+  // run repeatedly).
+  generateRecurringBudget(months) {
+    let added = 0;
+    for (const r of this.data.recurring) {
+      if (!r.active) continue;
+      for (const mk of months) {
+        const date = `${mk}-${String(r.dayOfMonth).padStart(2, "0")}`;
+        const exists = this.data.budget.some(
+          (b) => b.date === date && b.category === r.category && b.amount === r.amount
+        );
+        if (exists) continue;
+        this.data.budget.push({
+          id: uid("bud"),
+          date,
+          amount: r.amount,
+          category: r.category,
+          note: r.note || `recurring: ${r.name}`,
+          fromRecurring: r.id
+        });
+        added++;
+      }
+    }
+    if (added) {
+      this.data.budget.sort((a, b) => a.date.localeCompare(b.date));
+      this.save();
+    }
+    return added;
+  }
+
+  // ---------- Search ----------
+  searchTransactions({ query = "", category = "", from = "", to = "", kind = "all", source = "actuals" } = {}) {
+    const list = source === "budget" ? this.data.budget : this.data.actuals;
+    const q = query.trim().toLowerCase();
+    return list.filter((t) => {
+      if (from && t.date < from) return false;
+      if (to && t.date > to) return false;
+      if (category && t.category !== category) return false;
+      if (kind === "income" && t.amount < 0) return false;
+      if (kind === "expense" && t.amount >= 0) return false;
+      if (q) {
+        const hay = `${t.category} ${t.note || ""} ${t.date} ${Math.abs(t.amount)}`.toLowerCase();
+        if (!hay.includes(q)) return false;
+      }
+      return true;
+    }).sort((a, b) => b.date.localeCompare(a.date));
+  }
+
+  // ---------- Agent proposals ----------
+  // Applies a batch of operations atomically and stores a snapshot so the
+  // whole batch can be reversed with one tap.
+  applyProposal(operations) {
+    const snapshot = clone({
+      actuals: this.data.actuals,
+      budget: this.data.budget,
+      recurring: this.data.recurring,
+      goals: this.data.goals
+    });
+    const applied = [];
+
+    for (const op of operations) {
+      switch (op.action) {
+        case "add_budget":
+          this.data.budget.push({
+            id: uid("bud"), date: op.date, amount: Number(op.amount),
+            category: op.category || "other", note: op.note || ""
+          });
+          applied.push(op);
+          break;
+        case "delete_budget": {
+          const before = this.data.budget.length;
+          this.data.budget = this.data.budget.filter((b) => b.id !== op.id);
+          if (this.data.budget.length !== before) applied.push(op);
+          break;
+        }
+        case "add_transaction":
+          this.data.actuals.push({
+            id: uid("tx"), date: op.date, amount: Number(op.amount),
+            category: op.category || "other", note: op.note || "",
+            accountId: "", createdAt: new Date().toISOString()
+          });
+          applied.push(op);
+          break;
+        case "add_recurring":
+          this.data.recurring.push({
+            id: uid("rec"), name: op.name || op.category, category: op.category,
+            amount: Number(op.amount), dayOfMonth: Math.min(28, Math.max(1, Number(op.dayOfMonth) || 1)),
+            active: true, note: op.note || ""
+          });
+          applied.push(op);
+          break;
+        case "set_goal_saved":
+          if (this.data.goals[op.goal]) {
+            this.data.goals[op.goal].savedSoFar = Number(op.amount);
+            applied.push(op);
+          }
+          break;
+        default:
+          break; // unknown op: ignore rather than corrupt state
+      }
+    }
+
+    this.data.actuals.sort((a, b) => a.date.localeCompare(b.date));
+    this.data.budget.sort((a, b) => a.date.localeCompare(b.date));
+    this._lastProposalSnapshot = snapshot;
+    this.save();
+    return applied.length;
+  }
+
+  canUndoProposal() {
+    return !!this._lastProposalSnapshot;
+  }
+
+  undoLastProposal() {
+    if (!this._lastProposalSnapshot) return false;
+    Object.assign(this.data, clone(this._lastProposalSnapshot));
+    this._lastProposalSnapshot = null;
+    this.save();
+    return true;
   }
 
   // ---------- Import / export ----------
