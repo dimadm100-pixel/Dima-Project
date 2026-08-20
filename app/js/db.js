@@ -1,5 +1,5 @@
 import { SEED_DATA } from "./seed.js";
-import { addDays, todayStr } from "./utils.js";
+import { addDays, addMonths, todayStr } from "./utils.js";
 
 const STORAGE_KEY = "pft_data_v1";
 
@@ -345,7 +345,7 @@ class Store {
     let guard = 0;
     while (ds <= toDate && guard < 5000) {
       const delta = ds <= today ? (actualsByDate[ds] || 0) : (budgetByDate[ds] || 0);
-      if (ds !== start) running += delta;
+      running += delta;
       points.push({ date: ds, balance: running });
       ds = addDays(ds, 1);
       guard++;
@@ -364,7 +364,7 @@ class Store {
     let ds = start;
     let guard = 0;
     while (ds <= lastBudgetDate && guard < 5000) {
-      if (ds !== start) running += budgetByDate[ds] || 0;
+      running += budgetByDate[ds] || 0;
       points.push({ date: ds, balance: running });
       ds = addDays(ds, 1);
       guard++;
@@ -383,7 +383,7 @@ class Store {
     let ds = start;
     let guard = 0;
     while (ds <= end && guard < 5000) {
-      if (ds !== start) running += actualsByDate[ds] || 0;
+      running += actualsByDate[ds] || 0;
       points.push({ date: ds, balance: running });
       ds = addDays(ds, 1);
       guard++;
@@ -415,6 +415,48 @@ class Store {
     }
     if (current) holes.push(current);
     return holes;
+  }
+
+  // Day-by-day accumulated balance for one month, budgeted and actual side by side --
+  // the "Acc" column from the original cash flow sheet, but for both plan and reality.
+  dailyBalances(monthKey) {
+    const budgetTraj = this.budgetTrajectory();
+    const actualTraj = this.actualTrajectory();
+    const budgetAccByDate = Object.fromEntries(budgetTraj.map((p) => [p.date, p.balance]));
+    const actualAccByDate = Object.fromEntries(actualTraj.map((p) => [p.date, p.balance]));
+    const budgetDeltaByDate = groupSum(this.data.budget, null);
+    const actualDeltaByDate = groupSum(this.data.actuals, null);
+
+    const [y, m] = monthKey.split("-").map(Number);
+    const daysInMonth = new Date(Date.UTC(y, m, 0)).getUTCDate();
+    const rows = [];
+    for (let d = 1; d <= daysInMonth; d++) {
+      const date = `${monthKey}-${String(d).padStart(2, "0")}`;
+      rows.push({
+        date,
+        budgetDelta: budgetDeltaByDate[date] || 0,
+        budgetAcc: date in budgetAccByDate ? budgetAccByDate[date] : null,
+        actualDelta: actualDeltaByDate[date] || 0,
+        actualAcc: date in actualAccByDate ? actualAccByDate[date] : null
+      });
+    }
+    return rows;
+  }
+
+  // Every month the budget horizon spans, opening date through the furthest planned entry.
+  budgetMonths() {
+    const start = this.data.meta.openingDate;
+    const lastBudgetDate = this.data.budget.reduce((max, b) => (b.date > max ? b.date : max), start);
+    const months = [];
+    let mk = start.slice(0, 7);
+    const endMk = lastBudgetDate.slice(0, 7);
+    let guard = 0;
+    while (mk <= endMk && guard < 240) {
+      months.push(mk);
+      mk = addMonths(mk, 1);
+      guard++;
+    }
+    return months;
   }
 
 

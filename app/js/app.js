@@ -2,6 +2,7 @@ import { db } from "./db.js";
 import { renderDashboard } from "./pages/dashboard.js";
 import { renderCashPosition } from "./pages/cashPosition.js";
 import { renderCashFlow } from "./pages/cashFlow.js";
+import { renderAccCashFlow } from "./pages/accCashFlow.js";
 import { renderPnl } from "./pages/pnl.js";
 import { renderBalanceSheet } from "./pages/balanceSheet.js";
 import { renderGoals } from "./pages/goals.js";
@@ -15,6 +16,7 @@ const ROUTES = [
   { key: "dashboard", label: "Home", icon: "🏠", render: renderDashboard },
   { key: "cashposition", label: "Position", icon: "💵", render: renderCashPosition },
   { key: "cashflow", label: "Cash Flow", icon: "📅", render: renderCashFlow },
+  { key: "acccashflow", label: "Acc. Cash", icon: "🧮", render: renderAccCashFlow },
   { key: "pnl", label: "P&L", icon: "📈", render: renderPnl },
   { key: "balancesheet", label: "Balance", icon: "⚖️", render: renderBalanceSheet },
   { key: "goals", label: "Goals", icon: "🎯", render: (c, sub) => renderGoals(c, sub) },
