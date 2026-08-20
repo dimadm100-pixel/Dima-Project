@@ -1,5 +1,5 @@
 import { db } from "../db.js";
-import { fmtMoney, fmtMonth, fmtDate, todayStr, escapeHtml, svgBars } from "../utils.js";
+import { fmtMoney, fmtMonth, fmtDate, todayStr, escapeHtml, svgBars, svgDualLine } from "../utils.js";
 import { openSheet, closeSheet, confirmAction, field, numberInput, dateInput, textInput, selectInput, categoryField, showToast } from "../ui.js";
 
 let selectedMonth = todayStr().slice(0, 7);
@@ -12,9 +12,38 @@ export function renderCashFlow(container) {
   const variance = cmp.actualTotal - cmp.plannedTotal;
   const barItems = cmp.rows.map((r) => ({ label: r.category, value: r.actual - r.planned }));
 
+  const budgetTrajectory = db.budgetTrajectory();
+  const actualTrajectory = db.actualTrajectory();
+  const holes = db.cashHoles();
+  const lowestPoint = budgetTrajectory.reduce((min, p) => (p.balance < min.balance ? p : min), budgetTrajectory[0]);
+
   container.innerHTML = `
     <div class="page-title">Cash Flow</div>
     <p class="page-sub">The budget — what you planned to earn and spend, vs what actually happened.</p>
+
+    <div class="card">
+      <h2>Accumulated cash — budgeted vs actual</h2>
+      ${svgDualLine(budgetTrajectory, actualTrajectory)}
+      <div class="legend">
+        <div class="legend-item"><span class="legend-dot" style="background:var(--accent-2);"></span>Budgeted (full plan)</div>
+        <div class="legend-item"><span class="legend-dot" style="background:var(--accent);"></span>Actual (so far)</div>
+        ${lowestPoint.balance < 0 ? `<div class="legend-item"><span class="legend-dot" style="background:var(--danger);"></span>Zero line</div>` : ""}
+      </div>
+      ${holes.length ? `
+        <div class="divider"></div>
+        ${holes.map((h) => `
+          <div style="margin-bottom:10px;">
+            <span class="badge danger">cash hole</span>
+            <div style="font-size:13px; margin-top:6px;">
+              Balance goes negative from <strong>${fmtDate(h.start)}</strong> to <strong>${fmtDate(h.end)}</strong> —
+              lowest point <strong style="color:var(--danger);">${fmtMoney(h.lowest)}</strong> on ${fmtDate(h.lowestDate)}.
+            </div>
+          </div>
+        `).join("")}
+      ` : `
+        <p style="font-size:12px; color:var(--text-dim); margin-top:12px;">Lowest projected point: ${fmtMoney(lowestPoint.balance)} on ${fmtDate(lowestPoint.date)} — no cash holes in your current budget.</p>
+      `}
+    </div>
 
     <div class="tabs" id="month-tabs">
       ${months.map((m) => `<button class="${m === selectedMonth ? "active" : ""}" data-month="${m}">${fmtMonth(m)}</button>`).join("")}

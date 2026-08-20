@@ -90,6 +90,30 @@ export function el(tag, attrs = {}, children = []) {
   return node;
 }
 
+// Overlays two balance trajectories that share the same start date and daily step
+// (e.g. full budget projection vs. actual-so-far) on one shared scale, with a zero
+// baseline so a dip below zero -- a cash hole -- is visible at a glance.
+export function svgDualLine(seriesLong, seriesShort, {
+  width = 340, height = 150,
+  colorLong = "var(--accent-2)", colorShort = "var(--accent)", zeroColor = "var(--danger)"
+} = {}) {
+  if (!seriesLong.length) return `<svg width="${width}" height="${height}"></svg>`;
+  const allValues = [...seriesLong, ...seriesShort].map((p) => p.balance);
+  const min = Math.min(...allValues, 0);
+  const max = Math.max(...allValues, 0);
+  const range = max - min || 1;
+  const n = seriesLong.length;
+  const stepX = width / Math.max(n - 1, 1);
+  const yFor = (v) => height - ((v - min) / range) * (height - 10) - 5;
+  const pathFor = (series) => series.map((p, i) => `${i === 0 ? "M" : "L"}${(i * stepX).toFixed(1)},${yFor(p.balance).toFixed(1)}`).join(" ");
+  const zeroY = yFor(0);
+  return `<svg viewBox="0 0 ${width} ${height}" width="100%" height="${height}" preserveAspectRatio="none">
+    ${min < 0 ? `<line x1="0" y1="${zeroY.toFixed(1)}" x2="${width}" y2="${zeroY.toFixed(1)}" stroke="${zeroColor}" stroke-width="1" stroke-dasharray="4 3"></line>` : ""}
+    <path d="${pathFor(seriesLong)}" fill="none" stroke="${colorLong}" stroke-width="2" stroke-dasharray="5 3" stroke-linecap="round" stroke-linejoin="round"></path>
+    ${seriesShort.length > 1 ? `<path d="${pathFor(seriesShort)}" fill="none" stroke="${colorShort}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"></path>` : ""}
+  </svg>`;
+}
+
 export function svgSparkline(points, { width = 300, height = 80, stroke = "var(--accent)", fill = "var(--accent-fade)" } = {}) {
   if (!points.length) return `<svg width="${width}" height="${height}"></svg>`;
   const values = points.map((p) => p.balance ?? p.value ?? p);

@@ -353,7 +353,71 @@ class Store {
     return points;
   }
 
-  // Real P&L (income statement) for a month, computed strictly from actual transactions.
+  // Pure budget-only cumulative balance: "if everything goes exactly as planned",
+  // ignoring actuals entirely. Used to spot a future cash hole in the budget itself.
+  budgetTrajectory() {
+    const start = this.data.meta.openingDate;
+    const lastBudgetDate = this.data.budget.reduce((max, b) => (b.date > max ? b.date : max), start);
+    const budgetByDate = groupSum(this.data.budget, null);
+    const points = [];
+    let running = this.data.meta.openingBalance;
+    let ds = start;
+    let guard = 0;
+    while (ds <= lastBudgetDate && guard < 5000) {
+      if (ds !== start) running += budgetByDate[ds] || 0;
+      points.push({ date: ds, balance: running });
+      ds = addDays(ds, 1);
+      guard++;
+    }
+    return points;
+  }
+
+  // Pure actual-only cumulative balance up to today, ignoring budget entirely.
+  actualTrajectory() {
+    const start = this.data.meta.openingDate;
+    const today = todayStr();
+    const end = today > start ? today : start;
+    const actualsByDate = groupSum(this.data.actuals, null);
+    const points = [];
+    let running = this.data.meta.openingBalance;
+    let ds = start;
+    let guard = 0;
+    while (ds <= end && guard < 5000) {
+      if (ds !== start) running += actualsByDate[ds] || 0;
+      points.push({ date: ds, balance: running });
+      ds = addDays(ds, 1);
+      guard++;
+    }
+    return points;
+  }
+
+  // Finds every stretch in the pure budget trajectory where the balance goes negative --
+  // a "cash hole": a point in the plan where you'd run out of money if nothing changes.
+  cashHoles() {
+    const trajectory = this.budgetTrajectory();
+    const holes = [];
+    let current = null;
+    for (const p of trajectory) {
+      if (p.balance < 0) {
+        if (!current) {
+          current = { start: p.date, end: p.date, lowest: p.balance, lowestDate: p.date };
+        } else {
+          current.end = p.date;
+          if (p.balance < current.lowest) {
+            current.lowest = p.balance;
+            current.lowestDate = p.date;
+          }
+        }
+      } else if (current) {
+        holes.push(current);
+        current = null;
+      }
+    }
+    if (current) holes.push(current);
+    return holes;
+  }
+
+
   pnlForMonth(monthKey) {
     const items = this.data.actuals.filter((a) => a.date.startsWith(monthKey));
     const income = {};
