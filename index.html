@@ -237,7 +237,7 @@
   <div class="screen active" id="introScreen">
     <h1>A Very Important Experiment 🔬</h1>
     <p class="sub">There is a button. It says not to click it.<br>Science requires a name for the test subject.</p>
-    <input id="nameInput" type="text" placeholder="Her name..." maxlength="20">
+    <input id="nameInput" type="text" placeholder="Her name..." maxlength="20" value="Zubayda">
     <button class="btn-primary" id="startBtn">Begin the Experiment 💘</button>
   </div>
 
@@ -347,8 +347,9 @@
     "The button respects you now, against its will.",
     "It's spinning. It doesn't know what else to do.",
     "Somewhere, a UX designer is crying.",
-    "You are relentless. It's kind of attractive.",
+    "You are relentless, Darling. It's kind of attractive.",
     "The button is filing a complaint.",
+    "Even Bear is impressed, and he's hard to impress.",
     "Almost there. It doesn't know 'there' yet either.",
     "It's teleporting now. Purely out of spite.",
     "You know this button does nothing, right?",
@@ -359,9 +360,9 @@
     if(n === 0) return messages[0];
     if(n-1 < messages.length) return messages[n-1];
     const extras = [
-      "Still going. I admire the dedication.",
+      "Still going. I admire the dedication, Honey.",
       "This button owes its therapist a visit.",
-      "You could be doing literally anything else.",
+      "You could be doing literally anything else, Cutie.",
       "The button is now just vibing sideways.",
       "Almost at greatness. Or nothing. Probably nothing.",
       "Legends say the clicking never stops.",
@@ -525,7 +526,7 @@
 
     finaleTitle.textContent = 'Congratulations, ' + name + ' 🎉';
     finaleStat.textContent = 'Clicks: ' + clicks;
-    finaleNote.textContent = "You have successfully accomplished absolutely nothing. Except, somehow, making me smile just thinking about you doing this. That's the whole game. I love you. 💕";
+    finaleNote.textContent = "You have successfully accomplished absolutely nothing. Except, as usual, making your Bear smile without even trying. Five years in, and you still click every button life hands you, Darling — that's kind of our thing. You the milk, me the chocolate, somehow always better together. So thank you for still being here, Honey, still being my favorite kind of trouble. I love you, Cutie. — Your Beast 🐻💕";
 
     confettiHearts(60);
   }
