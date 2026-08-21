@@ -9,8 +9,14 @@ export function renderSpecifications(container) {
     <div class="page-title">Specifications</div>
     <p class="page-sub">Ad-hoc breakdowns — when you want to see exactly what a category is made of.</p>
 
-    ${specs.length ? specs.map((s) => specCard(s)).join("") : `<div class="card"><div class="empty-state">No breakdowns yet. Tap + to build one, e.g. "Food – August".</div></div>`}
+    ${specs.length ? specs.map((s) => specCard(s)).join("") : `<div class="card"><div class="empty-state">No breakdowns yet — build one to see exactly what a category is made of, e.g. "Food – August".</div></div>`}
+
+    <button class="btn" id="new-spec">+ New breakdown</button>
   `;
+
+  container.querySelector("#new-spec").addEventListener("click", () => {
+    openSpecEditor(null, () => renderSpecifications(container));
+  });
 
   container.querySelectorAll("[data-del-spec]").forEach((btn) => {
     btn.addEventListener("click", () => confirmAction("Delete this breakdown?", () => { db.deleteSpecification(btn.dataset.delSpec); renderSpecifications(container); }));

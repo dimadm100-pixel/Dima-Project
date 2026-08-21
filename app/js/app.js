@@ -16,6 +16,7 @@ import { renderSpecifications } from "./pages/specifications.js";
 import { renderCreditRating } from "./pages/creditRating.js";
 import { renderSettings } from "./pages/settings.js";
 import { openTransactionModal } from "./pages/transactionForm.js";
+import { openSpecEditor } from "./pages/specifications.js";
 import { openSheet, closeSheet } from "./ui.js";
 
 // `primary` decides what gets a slot in the phone's bottom bar; everything
@@ -97,8 +98,14 @@ function init() {
   });
   render();
 
+  // The + adds whatever the current page is about: a breakdown on
+  // Specifications, a transaction everywhere else.
   document.getElementById("fab").addEventListener("click", () => {
-    openTransactionModal({ onSaved: render });
+    if (currentRoute().key === "specifications") {
+      openSpecEditor(null, render);
+    } else {
+      openTransactionModal({ onSaved: render });
+    }
   });
 
   document.getElementById("settings-link").addEventListener("click", () => {
