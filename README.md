@@ -39,3 +39,7 @@ Once it's live on HTTPS:
 - **iPhone (Safari)**: open the URL → Share button → "Add to Home Screen".
 
 It then behaves like a native app: own icon, full-screen, and it keeps working offline after the first load.
+
+## Also in this repo: Don't Click The Button 🔴
+
+A small, self-contained, playful/romantic game lives at the repo root in `index.html` (unrelated to the finance tracker above). Just open it in a browser — no build step, no dependencies. See the `messages` array and `WIN_CLICKS` constant near the top of its `<script>` section to customize the jokes or the finale message.
