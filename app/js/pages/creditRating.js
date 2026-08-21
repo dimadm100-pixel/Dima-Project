@@ -30,7 +30,7 @@ export function renderCreditRating(container) {
     ${entries.length > 1 ? `
     <div class="card">
       <h2>Trend</h2>
-      ${svgSparkline(entries.map((e) => ({ value: e.score })), { height: 70 })}
+      ${svgSparkline(entries.map((e) => ({ value: e.score })), { height: 70, baseline: "auto" })}
     </div>` : ""}
 
     <div class="card">

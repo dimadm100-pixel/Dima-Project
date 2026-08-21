@@ -6,6 +6,7 @@ import { renderAccCashFlow } from "./pages/accCashFlow.js";
 import { renderInsights } from "./pages/insights.js";
 import { renderAssistant } from "./pages/assistant.js";
 import { renderPlanner } from "./pages/planner.js";
+import { renderFx } from "./pages/fx.js";
 import { renderSearch } from "./pages/search.js";
 import { renderPnl } from "./pages/pnl.js";
 import { renderBalanceSheet } from "./pages/balanceSheet.js";
@@ -25,6 +26,7 @@ const ROUTES = [
   { key: "dashboard", label: "Home", icon: "🏠", render: renderDashboard, primary: true },
   { key: "planner", label: "Planner", icon: "🧭", render: renderPlanner, primary: true },
   { key: "insights", label: "Insights", icon: "💡", render: renderInsights, primary: true },
+  { key: "fx", label: "FX Rates", icon: "💱", render: renderFx },
   { key: "assistant", label: "Assistant", icon: "🤖", render: renderAssistant },
   { key: "search", label: "Search", icon: "🔍", render: renderSearch },
   { key: "acccashflow", label: "Acc. Cash", icon: "🧮", render: renderAccCashFlow },

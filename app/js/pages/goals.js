@@ -1,6 +1,7 @@
 import { db } from "../db.js";
 import { fmtMoney, escapeHtml } from "../utils.js";
 import { openSheet, closeSheet, confirmAction, field, numberInput, textInput, showToast } from "../ui.js";
+import { effectiveRate, fxState } from "../fx.js";
 
 const TABS = [
   { key: "marriage", label: "Marriage" },
@@ -35,8 +36,10 @@ function renderMarriage(body, container) {
   const g = db.data.goals.marriage;
   const monthlyUZS = g.rows.reduce((s, r) => s + r.costUZS, 0);
   const annualUZS = monthlyUZS * 12;
-  const reserveAnnualUZS = g.reserveAnnualUSD * g.fxRate;
+  const rate = effectiveRate(g.fxRate);
+  const reserveAnnualUZS = g.reserveAnnualUSD * rate;
   const targetMonthlyUZS = monthlyUZS + reserveAnnualUZS / 12;
+  const usingLive = fxState().useLiveForGoals && Number.isFinite(fxState().rates?.USD?.rate);
   const pct = reserveAnnualUZS > 0 ? Math.min(100, Math.round((g.savedSoFar / reserveAnnualUZS) * 100)) : 0;
 
   body.innerHTML = `
@@ -44,6 +47,10 @@ function renderMarriage(body, container) {
       <h2>Reserve fund progress</h2>
       <div class="progress-bar"><div class="fill" style="width:${pct}%"></div></div>
       <p style="font-size:12px; color:var(--text-dim); margin-top:8px;">${fmtMoney(g.savedSoFar)} saved of ${fmtMoney(reserveAnnualUZS)} target (${pct}%)</p>
+      <p style="font-size:11px; color:${usingLive ? "var(--accent-2)" : "var(--text-dim)"}; margin-top:4px;">
+        $${g.reserveAnnualUSD.toLocaleString("en-US")} at ${Math.round(rate).toLocaleString("en-US")} UZS/USD
+        ${usingLive ? "· live CBU rate" : "· your fixed rate"}
+      </p>
       <button class="btn secondary small" id="edit-saved" style="margin-top:8px;">Update saved amount</button>
     </div>
 
@@ -202,7 +209,8 @@ function editHomeVariant(index, onDone) {
 function renderUmrah(body, container) {
   const g = db.data.goals.umrah;
   const totalUSD = g.amountUSD * g.people + g.bufferUSD;
-  const totalUZS = totalUSD * g.fxRate;
+  const umrahRate = effectiveRate(g.fxRate);
+  const totalUZS = totalUSD * umrahRate;
   const pct = totalUZS > 0 ? Math.min(100, Math.round((g.savedSoFar / totalUZS) * 100)) : 0;
 
   body.innerHTML = `

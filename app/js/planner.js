@@ -7,6 +7,7 @@
 
 import { db } from "./db.js";
 import { todayStr, addMonths } from "./utils.js";
+import { effectiveRate } from "./fx.js";
 
 const MIN_MEANINGFUL_SAVING = 50000; // UZS/month — below this, not worth flagging
 
@@ -204,7 +205,7 @@ export function findLeaks() {
 export function goalStatus(monthlyCutTotal = 0) {
   const surplus = averageMonthlySurplus() + monthlyCutTotal;
   const goals = [
-    { key: "marriage", label: "Marriage", target: db.data.goals.marriage.reserveAnnualUSD * db.data.goals.marriage.fxRate, saved: db.data.goals.marriage.savedSoFar },
+    { key: "marriage", label: "Marriage", target: db.data.goals.marriage.reserveAnnualUSD * effectiveRate(db.data.goals.marriage.fxRate), saved: db.data.goals.marriage.savedSoFar },
     { key: "home", label: "Home deposit", target: cheapestHomeInitial(), saved: db.data.goals.home.savedSoFar },
     { key: "umrah", label: "Umrah", target: umrahTotal(), saved: db.data.goals.umrah.savedSoFar }
   ];
@@ -321,5 +322,5 @@ function cheapestHomeInitial() {
 
 function umrahTotal() {
   const u = db.data.goals.umrah;
-  return (u.amountUSD * u.people + u.bufferUSD) * u.fxRate;
+  return (u.amountUSD * u.people + u.bufferUSD) * effectiveRate(u.fxRate);
 }

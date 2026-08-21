@@ -114,11 +114,22 @@ export function svgDualLine(seriesLong, seriesShort, {
   </svg>`;
 }
 
-export function svgSparkline(points, { width = 300, height = 80, stroke = "var(--accent)", fill = "var(--accent-fade)" } = {}) {
+/**
+ * baseline: "zero" anchors the scale at 0, which is what you want for balances
+ * so a dip below zero reads correctly. "auto" scales to the data's own range --
+ * necessary for series like FX rates, where every value is far from zero and
+ * anchoring at zero would flatten all the movement into a straight line.
+ */
+export function svgSparkline(points, { width = 300, height = 80, stroke = "var(--accent)", fill = "var(--accent-fade)", baseline = "zero" } = {}) {
   if (!points.length) return `<svg width="${width}" height="${height}"></svg>`;
   const values = points.map((p) => p.balance ?? p.value ?? p);
-  const min = Math.min(...values, 0);
-  const max = Math.max(...values, 0);
+  const anchor = baseline === "zero" ? [0] : [];
+  let min = Math.min(...values, ...anchor);
+  let max = Math.max(...values, ...anchor);
+  if (min === max) { min -= 1; max += 1; } // flat series still needs a band to draw in
+  const pad = baseline === "auto" ? (max - min) * 0.12 : 0;
+  min -= pad;
+  max += pad;
   const range = max - min || 1;
   const stepX = width / Math.max(values.length - 1, 1);
   const coords = values.map((v, i) => {

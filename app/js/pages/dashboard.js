@@ -2,6 +2,7 @@ import { db } from "../db.js";
 import { fmtMoney, fmtMoneyShort, fmtDate, fmtMonth, todayStr, addDays, svgSparkline, escapeHtml } from "../utils.js";
 import { showToast } from "../ui.js";
 import { analyze } from "../insights.js";
+import { effectiveRate, triggeredAlerts } from "../fx.js";
 
 // The handful of entries you log most often, so a repeat is one tap.
 function quickRepeats() {
@@ -29,6 +30,17 @@ function reminders() {
     if (f.severity === "low") continue;
     if (dismissed[f.id] === today) continue;
     out.push({ id: f.id, title: f.title, detail: f.detail, severity: f.severity });
+  }
+
+  for (const a of triggeredAlerts()) {
+    if (dismissed[a.id] === today) continue;
+    out.push({
+      id: a.id,
+      title: `${a.ccy} is ${a.direction} ${Math.round(a.threshold).toLocaleString("en-US")}`,
+      detail: `Now ${Math.round(a.rate).toLocaleString("en-US")} UZS per ${a.ccy} — past the threshold you set.`,
+      severity: "medium",
+      link: "#fx"
+    });
   }
 
   // Weekly digest: offered once per ISO week, on or after Sunday.
@@ -86,7 +98,7 @@ export function renderDashboard(container) {
   const repeats = quickRepeats();
 
   const goalCards = [
-    goalMiniCard("Marriage", db.data.goals.marriage.reserveAnnualUSD * db.data.goals.marriage.fxRate, db.data.goals.marriage.savedSoFar, "#goals/marriage"),
+    goalMiniCard("Marriage", db.data.goals.marriage.reserveAnnualUSD * effectiveRate(db.data.goals.marriage.fxRate), db.data.goals.marriage.savedSoFar, "#goals/marriage"),
     goalMiniCard("Home", homeTargetUZS(), db.data.goals.home.savedSoFar, "#goals/home"),
     goalMiniCard("Umrah", umrahTotalUZS(), db.data.goals.umrah.savedSoFar, "#goals/umrah")
   ].join("");
@@ -261,6 +273,6 @@ function homeTargetUZS() {
 
 function umrahTotalUZS() {
   const u = db.data.goals.umrah;
-  return (u.amountUSD * u.people + u.bufferUSD) * u.fxRate;
+  return (u.amountUSD * u.people + u.bufferUSD) * effectiveRate(u.fxRate);
 }
 

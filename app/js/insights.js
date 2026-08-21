@@ -4,6 +4,7 @@
 
 import { db } from "./db.js";
 import { todayStr, addDays, addMonths, fmtMonth } from "./utils.js";
+import { effectiveRate } from "./fx.js";
 
 const SEVERITY_ORDER = { high: 0, medium: 1, low: 2 };
 
@@ -142,7 +143,7 @@ function goalPaceFindings() {
   const out = [];
   const monthlyNet = averageMonthlyNet();
   const goals = [
-    { key: "marriage", label: "Marriage", target: db.data.goals.marriage.reserveAnnualUSD * db.data.goals.marriage.fxRate, saved: db.data.goals.marriage.savedSoFar },
+    { key: "marriage", label: "Marriage", target: db.data.goals.marriage.reserveAnnualUSD * effectiveRate(db.data.goals.marriage.fxRate), saved: db.data.goals.marriage.savedSoFar },
     { key: "home", label: "Home (initial payment)", target: cheapestHomeInitial(), saved: db.data.goals.home.savedSoFar },
     { key: "umrah", label: "Umrah", target: umrahTotal(), saved: db.data.goals.umrah.savedSoFar }
   ];
@@ -266,7 +267,7 @@ export function buildAIContext() {
     accounts: db.accountsWithBalances().map((a) => ({ name: a.name, balance: a.balance })),
     unassignedTransactionCount: db.unassignedTransactions().length,
     goals: {
-      marriage: { targetUZS: db.data.goals.marriage.reserveAnnualUSD * db.data.goals.marriage.fxRate, saved: db.data.goals.marriage.savedSoFar, monthlyLifestyleCost: db.data.goals.marriage.rows.reduce((s, r) => s + r.costUZS, 0) },
+      marriage: { targetUZS: db.data.goals.marriage.reserveAnnualUSD * effectiveRate(db.data.goals.marriage.fxRate), saved: db.data.goals.marriage.savedSoFar, monthlyLifestyleCost: db.data.goals.marriage.rows.reduce((s, r) => s + r.costUZS, 0) },
       home: { cheapestInitialUZS: cheapestHomeInitial(), saved: db.data.goals.home.savedSoFar },
       umrah: { totalUZS: umrahTotal(), saved: db.data.goals.umrah.savedSoFar }
     },
@@ -322,5 +323,5 @@ function cheapestHomeInitial() {
 
 function umrahTotal() {
   const u = db.data.goals.umrah;
-  return (u.amountUSD * u.people + u.bufferUSD) * u.fxRate;
+  return (u.amountUSD * u.people + u.bufferUSD) * effectiveRate(u.fxRate);
 }
