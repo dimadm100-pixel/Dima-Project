@@ -1,0 +1,757 @@
+import { SEED_DATA } from "./seed.js";
+import { addDays, addMonths, todayStr } from "./utils.js";
+
+const STORAGE_KEY = "pft_data_v1";
+
+function clone(obj) {
+  return JSON.parse(JSON.stringify(obj));
+}
+
+function uid(prefix = "id") {
+  return `${prefix}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+}
+
+// Adds fields introduced after the first release so data saved by an older
+// version of the app keeps working instead of throwing on a missing key.
+function migrate(data) {
+  if (!Array.isArray(data.recurring)) data.recurring = [];
+  if (!Array.isArray(data.specifications)) data.specifications = [];
+  if (!Array.isArray(data.creditRating)) data.creditRating = [];
+  if (!Array.isArray(data.transfers)) data.transfers = [];
+  if (!data.dismissed || typeof data.dismissed !== "object") data.dismissed = {};
+  if (!data.meta) data.meta = { openingBalance: 0, openingDate: todayStr(), currency: "UZS" };
+  if (!data.balanceSheetExtra) data.balanceSheetExtra = { investments: 0, otherAssets: [], liabilities: [] };
+
+  // Account balances used to be typed in by hand. They're now derived from a
+  // starting balance plus assigned activity, so the old figure becomes the
+  // opening balance and everything after it is computed.
+  for (const a of data.accounts || []) {
+    if (a.openingBalance === undefined) a.openingBalance = Number(a.balance) || 0;
+    delete a.balance;
+  }
+  return data;
+}
+
+class Store {
+  constructor() {
+    this.data = this._load();
+    this._listeners = new Set();
+  }
+
+  _load() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) return migrate(JSON.parse(raw));
+    } catch (e) {
+      console.error("Failed to load stored data, falling back to seed.", e);
+    }
+    return migrate(clone(SEED_DATA));
+  }
+
+  save() {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(this.data));
+    this._listeners.forEach((fn) => fn());
+  }
+
+  onChange(fn) {
+    this._listeners.add(fn);
+    return () => this._listeners.delete(fn);
+  }
+
+  // ---------- Transactions (actual ledger = Cash Position) ----------
+  addActual(tx) {
+    this.data.actuals.push({
+      id: uid("tx"),
+      date: tx.date,
+      amount: Number(tx.amount),
+      category: tx.category || "other",
+      note: tx.note || "",
+      accountId: tx.accountId || "",
+      createdAt: new Date().toISOString()
+    });
+    this.data.actuals.sort((a, b) => a.date.localeCompare(b.date));
+    this.save();
+  }
+
+  updateActual(id, patch) {
+    const t = this.data.actuals.find((x) => x.id === id);
+    if (!t) return;
+    Object.assign(t, patch);
+    if (patch.amount !== undefined) t.amount = Number(patch.amount);
+    this.data.actuals.sort((a, b) => a.date.localeCompare(b.date));
+    this.save();
+  }
+
+  deleteActual(id) {
+    this.data.actuals = this.data.actuals.filter((x) => x.id !== id);
+    this.save();
+  }
+
+  // ---------- Budget (planned ledger = Cash Flow) ----------
+  addBudgetItem(item) {
+    this.data.budget.push({
+      id: uid("bud"),
+      date: item.date,
+      amount: Number(item.amount),
+      category: item.category || "other",
+      note: item.note || ""
+    });
+    this.data.budget.sort((a, b) => a.date.localeCompare(b.date));
+    this.save();
+  }
+
+  updateBudgetItem(id, patch) {
+    const t = this.data.budget.find((x) => x.id === id);
+    if (!t) return;
+    Object.assign(t, patch);
+    if (patch.amount !== undefined) t.amount = Number(patch.amount);
+    this.data.budget.sort((a, b) => a.date.localeCompare(b.date));
+    this.save();
+  }
+
+  deleteBudgetItem(id) {
+    this.data.budget = this.data.budget.filter((x) => x.id !== id);
+    this.save();
+  }
+
+  // ---------- Accounts ----------
+  updateAccount(id, patch) {
+    const a = this.data.accounts.find((x) => x.id === id);
+    if (!a) return;
+    Object.assign(a, patch);
+    if (patch.openingBalance !== undefined) a.openingBalance = Number(patch.openingBalance);
+    this.save();
+  }
+
+  addAccount(acc) {
+    this.data.accounts.push({
+      id: uid("acc"),
+      name: acc.name,
+      number: acc.number || "",
+      openingBalance: Number(acc.openingBalance) || 0
+    });
+    this.save();
+  }
+
+  // Refuses to orphan history: an account still holding activity must be
+  // emptied or reassigned first, or its transactions would silently detach.
+  accountUsage(id) {
+    const txns = this.data.actuals.filter((t) => t.accountId === id).length;
+    const transfers = this.data.transfers.filter((t) => t.fromAccountId === id || t.toAccountId === id).length;
+    return { txns, transfers, total: txns + transfers };
+  }
+
+  deleteAccount(id) {
+    this.data.accounts = this.data.accounts.filter((x) => x.id !== id);
+    this.save();
+  }
+
+  reassignAccount(fromId, toId) {
+    for (const t of this.data.actuals) if (t.accountId === fromId) t.accountId = toId;
+    for (const t of this.data.transfers) {
+      if (t.fromAccountId === fromId) t.fromAccountId = toId;
+      if (t.toAccountId === fromId) t.toAccountId = toId;
+    }
+    this.save();
+  }
+
+  // Current balance of one account: where it started, plus everything
+  // assigned to it, plus transfers in and out.
+  accountBalance(id) {
+    const acc = this.data.accounts.find((a) => a.id === id);
+    if (!acc) return 0;
+    let bal = Number(acc.openingBalance) || 0;
+    for (const t of this.data.actuals) if (t.accountId === id) bal += t.amount;
+    for (const t of this.data.transfers) {
+      if (t.fromAccountId === id) bal -= t.amount;
+      if (t.toAccountId === id) bal += t.amount;
+    }
+    return bal;
+  }
+
+  accountsWithBalances() {
+    return this.data.accounts.map((a) => ({ ...a, balance: this.accountBalance(a.id) }));
+  }
+
+  // Transactions with no account attached. Their total is exactly the gap
+  // between the ledger and the sum of the accounts.
+  unassignedTransactions() {
+    const ids = new Set(this.data.accounts.map((a) => a.id));
+    return this.data.actuals.filter((t) => !t.accountId || !ids.has(t.accountId));
+  }
+
+  // ---------- Transfers ----------
+  addTransfer(t) {
+    this.data.transfers.push({
+      id: uid("trf"),
+      date: t.date,
+      amount: Math.abs(Number(t.amount)),
+      fromAccountId: t.fromAccountId,
+      toAccountId: t.toAccountId,
+      note: t.note || ""
+    });
+    this.data.transfers.sort((a, b) => a.date.localeCompare(b.date));
+    this.save();
+  }
+
+  deleteTransfer(id) {
+    this.data.transfers = this.data.transfers.filter((x) => x.id !== id);
+    this.save();
+  }
+
+  accountName(id) {
+    const a = this.data.accounts.find((x) => x.id === id);
+    return a ? a.name : "—";
+  }
+
+  // ---------- Goals ----------
+  updateGoalField(goalKey, patch) {
+    Object.assign(this.data.goals[goalKey], patch);
+    this.save();
+  }
+
+  addMarriageRow(row) {
+    this.data.goals.marriage.rows.push({ id: uid("mrow"), type: row.type, element: row.element, units: Number(row.units) || 1, costUZS: Number(row.costUZS) || 0, costUSD: Number(row.costUSD) || 0 });
+    this.save();
+  }
+  updateMarriageRow(id, patch) {
+    const r = this.data.goals.marriage.rows.find((x) => x.id === id);
+    if (!r) return;
+    Object.assign(r, patch);
+    this.save();
+  }
+  deleteMarriageRow(id) {
+    this.data.goals.marriage.rows = this.data.goals.marriage.rows.filter((x) => x.id !== id);
+    this.save();
+  }
+
+  updateHomeVariant(index, patch) {
+    Object.assign(this.data.goals.home.variants[index], patch);
+    this.save();
+  }
+
+  // ---------- Targets ----------
+  addTargetCheckpoint(cp) {
+    this.data.targets.checkpoints.push({ date: cp.date, target1: cp.target1 ?? null, target2: cp.target2 ?? null, target3: cp.target3 ?? null, target4: cp.target4 ?? null });
+    this.data.targets.checkpoints.sort((a, b) => a.date.localeCompare(b.date));
+    this.save();
+  }
+
+  updateTargetDef(name, patch) {
+    const d = this.data.targets.defs.find((x) => x.name === name);
+    if (!d) return;
+    Object.assign(d, patch);
+    this.save();
+  }
+
+  // ---------- Specifications (freeform breakdown lists) ----------
+  addSpecification(spec) {
+    this.data.specifications.push({
+      id: uid("spec"),
+      date: spec.date,
+      title: spec.title,
+      kind: spec.kind || "expense",
+      items: spec.items || []
+    });
+    this.save();
+  }
+
+  updateSpecification(id, patch) {
+    const s = this.data.specifications.find((x) => x.id === id);
+    if (!s) return;
+    Object.assign(s, patch);
+    this.save();
+  }
+
+  deleteSpecification(id) {
+    this.data.specifications = this.data.specifications.filter((x) => x.id !== id);
+    this.save();
+  }
+
+  // ---------- Credit rating ----------
+  addCreditEntry(entry) {
+    this.data.creditRating.push({ id: uid("cr"), date: entry.date, score: Number(entry.score), bureau: entry.bureau || "", notes: entry.notes || "" });
+    this.data.creditRating.sort((a, b) => a.date.localeCompare(b.date));
+    this.save();
+  }
+
+  deleteCreditEntry(id) {
+    this.data.creditRating = this.data.creditRating.filter((x) => x.id !== id);
+    this.save();
+  }
+
+  // ---------- Balance sheet extras ----------
+  updateBalanceSheetExtra(patch) {
+    Object.assign(this.data.balanceSheetExtra, patch);
+    this.save();
+  }
+
+  addOtherAsset(a) {
+    this.data.balanceSheetExtra.otherAssets.push({ id: uid("asset"), name: a.name, value: Number(a.value) || 0 });
+    this.save();
+  }
+  deleteOtherAsset(id) {
+    this.data.balanceSheetExtra.otherAssets = this.data.balanceSheetExtra.otherAssets.filter((x) => x.id !== id);
+    this.save();
+  }
+  addLiability(l) {
+    this.data.balanceSheetExtra.liabilities.push({ id: uid("liab"), name: l.name, value: Number(l.value) || 0 });
+    this.save();
+  }
+  deleteLiability(id) {
+    this.data.balanceSheetExtra.liabilities = this.data.balanceSheetExtra.liabilities.filter((x) => x.id !== id);
+    this.save();
+  }
+
+  // ---------- Meta ----------
+  setOpeningBalance(amount, date) {
+    this.data.meta.openingBalance = Number(amount);
+    if (date) this.data.meta.openingDate = date;
+    this.save();
+  }
+
+  // ---------- Recurring transactions ----------
+  addRecurring(r) {
+    this.data.recurring.push({
+      id: uid("rec"),
+      name: r.name || r.category,
+      category: r.category,
+      amount: Number(r.amount),
+      dayOfMonth: Math.min(28, Math.max(1, Number(r.dayOfMonth) || 1)),
+      active: r.active !== false,
+      note: r.note || ""
+    });
+    this.save();
+  }
+
+  updateRecurring(id, patch) {
+    const r = this.data.recurring.find((x) => x.id === id);
+    if (!r) return;
+    Object.assign(r, patch);
+    if (patch.amount !== undefined) r.amount = Number(patch.amount);
+    if (patch.dayOfMonth !== undefined) r.dayOfMonth = Math.min(28, Math.max(1, Number(patch.dayOfMonth) || 1));
+    this.save();
+  }
+
+  deleteRecurring(id) {
+    this.data.recurring = this.data.recurring.filter((x) => x.id !== id);
+    this.save();
+  }
+
+  // Writes each active recurring item into the budget for the given months,
+  // skipping any month where that item is already budgeted (so it's safe to
+  // run repeatedly).
+  generateRecurringBudget(months) {
+    let added = 0;
+    for (const r of this.data.recurring) {
+      if (!r.active) continue;
+      for (const mk of months) {
+        const date = `${mk}-${String(r.dayOfMonth).padStart(2, "0")}`;
+        const exists = this.data.budget.some(
+          (b) => b.date === date && b.category === r.category && b.amount === r.amount
+        );
+        if (exists) continue;
+        this.data.budget.push({
+          id: uid("bud"),
+          date,
+          amount: r.amount,
+          category: r.category,
+          note: r.note || `recurring: ${r.name}`,
+          fromRecurring: r.id
+        });
+        added++;
+      }
+    }
+    if (added) {
+      this.data.budget.sort((a, b) => a.date.localeCompare(b.date));
+      this.save();
+    }
+    return added;
+  }
+
+  // ---------- Search ----------
+  searchTransactions({ query = "", category = "", from = "", to = "", kind = "all", source = "actuals" } = {}) {
+    const list = source === "budget" ? this.data.budget : this.data.actuals;
+    const q = query.trim().toLowerCase();
+    return list.filter((t) => {
+      if (from && t.date < from) return false;
+      if (to && t.date > to) return false;
+      if (category && t.category !== category) return false;
+      if (kind === "income" && t.amount < 0) return false;
+      if (kind === "expense" && t.amount >= 0) return false;
+      if (q) {
+        const hay = `${t.category} ${t.note || ""} ${t.date} ${Math.abs(t.amount)}`.toLowerCase();
+        if (!hay.includes(q)) return false;
+      }
+      return true;
+    }).sort((a, b) => b.date.localeCompare(a.date));
+  }
+
+  // ---------- Agent proposals ----------
+  // Applies a batch of operations atomically and stores a snapshot so the
+  // whole batch can be reversed with one tap.
+  applyProposal(operations) {
+    const snapshot = clone({
+      actuals: this.data.actuals,
+      budget: this.data.budget,
+      recurring: this.data.recurring,
+      goals: this.data.goals
+    });
+    const applied = [];
+
+    for (const op of operations) {
+      switch (op.action) {
+        case "add_budget":
+          this.data.budget.push({
+            id: uid("bud"), date: op.date, amount: Number(op.amount),
+            category: op.category || "other", note: op.note || ""
+          });
+          applied.push(op);
+          break;
+        case "delete_budget": {
+          const before = this.data.budget.length;
+          this.data.budget = this.data.budget.filter((b) => b.id !== op.id);
+          if (this.data.budget.length !== before) applied.push(op);
+          break;
+        }
+        case "add_transaction":
+          this.data.actuals.push({
+            id: uid("tx"), date: op.date, amount: Number(op.amount),
+            category: op.category || "other", note: op.note || "",
+            accountId: "", createdAt: new Date().toISOString()
+          });
+          applied.push(op);
+          break;
+        case "add_recurring":
+          this.data.recurring.push({
+            id: uid("rec"), name: op.name || op.category, category: op.category,
+            amount: Number(op.amount), dayOfMonth: Math.min(28, Math.max(1, Number(op.dayOfMonth) || 1)),
+            active: true, note: op.note || ""
+          });
+          applied.push(op);
+          break;
+        case "set_goal_saved":
+          if (this.data.goals[op.goal]) {
+            this.data.goals[op.goal].savedSoFar = Number(op.amount);
+            applied.push(op);
+          }
+          break;
+        default:
+          break; // unknown op: ignore rather than corrupt state
+      }
+    }
+
+    this.data.actuals.sort((a, b) => a.date.localeCompare(b.date));
+    this.data.budget.sort((a, b) => a.date.localeCompare(b.date));
+    this._lastProposalSnapshot = snapshot;
+    this.save();
+    return applied.length;
+  }
+
+  canUndoProposal() {
+    return !!this._lastProposalSnapshot;
+  }
+
+  undoLastProposal() {
+    if (!this._lastProposalSnapshot) return false;
+    Object.assign(this.data, clone(this._lastProposalSnapshot));
+    this._lastProposalSnapshot = null;
+    this.save();
+    return true;
+  }
+
+  // ---------- Import / export ----------
+  exportJSON() {
+    return JSON.stringify(this.data, null, 2);
+  }
+
+  importJSON(json) {
+    const parsed = JSON.parse(json);
+    this.data = parsed;
+    this.save();
+  }
+
+  resetToSeed() {
+    this.data = clone(SEED_DATA);
+    this.save();
+  }
+
+  // ================= Derived / computed values =================
+
+  // Running actual cash balance as of a given date (inclusive), starting from openingBalance.
+  actualBalanceAsOf(dateStr) {
+    const opening = this.data.meta.openingBalance;
+    const sum = this.data.actuals
+      .filter((t) => t.date <= dateStr)
+      .reduce((s, t) => s + t.amount, 0);
+    return opening + sum;
+  }
+
+  currentBalance() {
+    const today = todayStr();
+    return this.actualBalanceAsOf(today > this.data.meta.openingDate ? today : this.data.meta.openingDate);
+  }
+
+  // Full running ledger for the Cash Position page: opening balance row + each actual, with running total.
+  cashPositionLedger() {
+    const opening = this.data.meta.openingBalance;
+    let running = opening;
+    const rows = [
+      { date: this.data.meta.openingDate, type: "opening", label: "Opening balance", amount: null, balance: opening }
+    ];
+    const sorted = [...this.data.actuals].sort((a, b) => a.date.localeCompare(b.date) || a.createdAt.localeCompare(b.createdAt));
+    for (const t of sorted) {
+      running += t.amount;
+      rows.push({ id: t.id, date: t.date, type: t.amount >= 0 ? "income" : "expense", label: t.category, note: t.note, amount: t.amount, balance: running, accountId: t.accountId });
+    }
+    return rows;
+  }
+
+  accountsTotal() {
+    return this.data.accounts.reduce((s, a) => s + this.accountBalance(a.id), 0);
+  }
+
+  // Budget vs actual for a given month "YYYY-MM"
+  monthComparison(monthKey) {
+    const budgetItems = this.data.budget.filter((b) => b.date.startsWith(monthKey));
+    const actualItems = this.data.actuals.filter((a) => a.date.startsWith(monthKey));
+    const byCategory = {};
+    for (const b of budgetItems) {
+      const c = b.category;
+      byCategory[c] = byCategory[c] || { category: c, planned: 0, actual: 0 };
+      byCategory[c].planned += b.amount;
+    }
+    for (const a of actualItems) {
+      const c = a.category;
+      byCategory[c] = byCategory[c] || { category: c, planned: 0, actual: 0 };
+      byCategory[c].actual += a.amount;
+    }
+    const rows = Object.values(byCategory).sort((a, b) => a.category.localeCompare(b.category));
+    const plannedTotal = budgetItems.reduce((s, b) => s + b.amount, 0);
+    const actualTotal = actualItems.reduce((s, a) => s + a.amount, 0);
+    return { rows, plannedTotal, actualTotal };
+  }
+
+  // Expense categories tracking over their monthly budget pace, for the current month.
+  budgetAlerts() {
+    const today = todayStr();
+    const monthKey = today.slice(0, 7);
+    const [y, m] = monthKey.split("-").map(Number);
+    const daysInMonth = new Date(Date.UTC(y, m, 0)).getUTCDate();
+    const dayOfMonth = Number(today.slice(8, 10));
+    const pacePct = dayOfMonth / daysInMonth;
+
+    const { rows } = this.monthComparison(monthKey);
+    const alerts = [];
+    for (const r of rows) {
+      if (r.planned >= 0) continue; // only budgeted expenses
+      const planned = Math.abs(r.planned);
+      const actual = Math.abs(Math.min(r.actual, 0));
+      if (planned === 0) continue;
+      const expectedByNow = planned * pacePct;
+      const overBy = actual - expectedByNow;
+      if (actual > planned) {
+        alerts.push({ category: r.category, planned, actual, overBy: actual - planned, severity: "over" });
+      } else if (overBy > planned * 0.1) {
+        alerts.push({ category: r.category, planned, actual, overBy, severity: "pace" });
+      }
+    }
+    alerts.sort((a, b) => (b.severity === "over") - (a.severity === "over") || b.overBy - a.overBy);
+    return alerts;
+  }
+
+  // Categories ranked by how often they're used, split by income/expense, for autocomplete.
+  categoryFrequency(kind) {
+    const counts = {};
+    const consider = (list) => {
+      for (const t of list) {
+        const isIncome = t.amount >= 0;
+        if ((kind === "income") !== isIncome) continue;
+        counts[t.category] = (counts[t.category] || 0) + 1;
+      }
+    };
+    consider(this.data.actuals);
+    consider(this.data.budget);
+    return Object.entries(counts).sort((a, b) => b[1] - a[1]).map(([cat]) => cat);
+  }
+
+  // Projected balance trajectory combining actuals up to today, budget after.
+  projectedTrajectory(toDate) {
+    const points = [];
+    let running = this.data.meta.openingBalance;
+    const today = todayStr();
+    const start = this.data.meta.openingDate;
+    const actualsByDate = groupSum(this.data.actuals, today);
+    const budgetByDate = groupSum(this.data.budget, null);
+    let ds = start;
+    let guard = 0;
+    while (ds <= toDate && guard < 5000) {
+      const delta = ds <= today ? (actualsByDate[ds] || 0) : (budgetByDate[ds] || 0);
+      running += delta;
+      points.push({ date: ds, balance: running });
+      ds = addDays(ds, 1);
+      guard++;
+    }
+    return points;
+  }
+
+  // Pure budget-only cumulative balance: "if everything goes exactly as planned",
+  // ignoring actuals entirely. Used to spot a future cash hole in the budget itself.
+  budgetTrajectory() {
+    const start = this.data.meta.openingDate;
+    const lastBudgetDate = this.data.budget.reduce((max, b) => (b.date > max ? b.date : max), start);
+    const budgetByDate = groupSum(this.data.budget, null);
+    const points = [];
+    let running = this.data.meta.openingBalance;
+    let ds = start;
+    let guard = 0;
+    while (ds <= lastBudgetDate && guard < 5000) {
+      running += budgetByDate[ds] || 0;
+      points.push({ date: ds, balance: running });
+      ds = addDays(ds, 1);
+      guard++;
+    }
+    return points;
+  }
+
+  // Pure actual-only cumulative balance up to today, ignoring budget entirely.
+  actualTrajectory() {
+    const start = this.data.meta.openingDate;
+    const today = todayStr();
+    const end = today > start ? today : start;
+    const actualsByDate = groupSum(this.data.actuals, null);
+    const points = [];
+    let running = this.data.meta.openingBalance;
+    let ds = start;
+    let guard = 0;
+    while (ds <= end && guard < 5000) {
+      running += actualsByDate[ds] || 0;
+      points.push({ date: ds, balance: running });
+      ds = addDays(ds, 1);
+      guard++;
+    }
+    return points;
+  }
+
+  // Finds every stretch in the pure budget trajectory where the balance goes negative --
+  // a "cash hole": a point in the plan where you'd run out of money if nothing changes.
+  cashHoles() {
+    const trajectory = this.budgetTrajectory();
+    const holes = [];
+    let current = null;
+    for (const p of trajectory) {
+      if (p.balance < 0) {
+        if (!current) {
+          current = { start: p.date, end: p.date, lowest: p.balance, lowestDate: p.date };
+        } else {
+          current.end = p.date;
+          if (p.balance < current.lowest) {
+            current.lowest = p.balance;
+            current.lowestDate = p.date;
+          }
+        }
+      } else if (current) {
+        holes.push(current);
+        current = null;
+      }
+    }
+    if (current) holes.push(current);
+    return holes;
+  }
+
+  // Day-by-day accumulated balance for one month, budgeted and actual side by side --
+  // the "Acc" column from the original cash flow sheet, but for both plan and reality.
+  dailyBalances(monthKey) {
+    const budgetTraj = this.budgetTrajectory();
+    const actualTraj = this.actualTrajectory();
+    const budgetAccByDate = Object.fromEntries(budgetTraj.map((p) => [p.date, p.balance]));
+    const actualAccByDate = Object.fromEntries(actualTraj.map((p) => [p.date, p.balance]));
+    const budgetDeltaByDate = groupSum(this.data.budget, null);
+    const actualDeltaByDate = groupSum(this.data.actuals, null);
+
+    const [y, m] = monthKey.split("-").map(Number);
+    const daysInMonth = new Date(Date.UTC(y, m, 0)).getUTCDate();
+    const rows = [];
+    for (let d = 1; d <= daysInMonth; d++) {
+      const date = `${monthKey}-${String(d).padStart(2, "0")}`;
+      rows.push({
+        date,
+        budgetDelta: budgetDeltaByDate[date] || 0,
+        budgetAcc: date in budgetAccByDate ? budgetAccByDate[date] : null,
+        actualDelta: actualDeltaByDate[date] || 0,
+        actualAcc: date in actualAccByDate ? actualAccByDate[date] : null
+      });
+    }
+    return rows;
+  }
+
+  // Every month the budget horizon spans, opening date through the furthest planned entry.
+  budgetMonths() {
+    const start = this.data.meta.openingDate;
+    const lastBudgetDate = this.data.budget.reduce((max, b) => (b.date > max ? b.date : max), start);
+    const months = [];
+    let mk = start.slice(0, 7);
+    const endMk = lastBudgetDate.slice(0, 7);
+    let guard = 0;
+    while (mk <= endMk && guard < 240) {
+      months.push(mk);
+      mk = addMonths(mk, 1);
+      guard++;
+    }
+    return months;
+  }
+
+
+  pnlForMonth(monthKey) {
+    const items = this.data.actuals.filter((a) => a.date.startsWith(monthKey));
+    const income = {};
+    const expense = {};
+    let incomeTotal = 0, expenseTotal = 0;
+    for (const t of items) {
+      if (t.amount >= 0) {
+        income[t.category] = (income[t.category] || 0) + t.amount;
+        incomeTotal += t.amount;
+      } else {
+        expense[t.category] = (expense[t.category] || 0) + Math.abs(t.amount);
+        expenseTotal += Math.abs(t.amount);
+      }
+    }
+    return { income, expense, incomeTotal, expenseTotal, net: incomeTotal - expenseTotal };
+  }
+
+  monthsWithActivity() {
+    const set = new Set(this.data.actuals.map((a) => a.date.slice(0, 7)));
+    set.add(todayStr().slice(0, 7));
+    return [...set].sort();
+  }
+
+  // Balance sheet as of now, fully derived (fixes the broken linkage in the original file).
+  balanceSheet() {
+    const cash = this.currentBalance();
+    const investments = this.data.balanceSheetExtra.investments;
+    const otherAssets = this.data.balanceSheetExtra.otherAssets.reduce((s, a) => s + a.value, 0);
+    const totalAssets = cash + investments + otherAssets;
+    const totalLiabilities = this.data.balanceSheetExtra.liabilities.reduce((s, l) => s + l.value, 0);
+    const equity = totalAssets - totalLiabilities;
+    return { cash, investments, otherAssets, totalAssets, totalLiabilities, equity };
+  }
+
+  allCategories() {
+    const set = new Set();
+    this.data.actuals.forEach((t) => set.add(t.category));
+    this.data.budget.forEach((t) => set.add(t.category));
+    return [...set].sort();
+  }
+}
+
+function groupSum(list, cutoffExclusiveAfter) {
+  const map = {};
+  for (const t of list) {
+    if (cutoffExclusiveAfter && t.date > cutoffExclusiveAfter) continue;
+    map[t.date] = (map[t.date] || 0) + t.amount;
+  }
+  return map;
+}
+
+export const db = new Store();
+export { uid };
