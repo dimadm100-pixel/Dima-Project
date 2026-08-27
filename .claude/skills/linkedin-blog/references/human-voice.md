@@ -4,6 +4,15 @@ LinkedIn readers in 2025-2026 encounter AI-written posts constantly and have lea
 
 The underlying reason all of these read as machine-written is the same: they are the *average* choice. Language models converge on the most typical phrasing, the most balanced structure, the most agreeable stance. Human writing is idiosyncratic - it over-uses one favourite word, leaves a thought slightly unfinished, commits to an opinion without covering the counterargument, and includes a detail that serves no rhetorical purpose except that it actually happened.
 
+> **Read the voice profile first.** Everything below describes defaults for a
+> writer whose habits are unknown. The moment `profile/voice-profile.md` says
+> otherwise, it overrides this file. Real people use em dashes. Real people use
+> emoji as section headers, write numbered lists, and end with a question to
+> their readers. When those appear in the user's own posts they are the voice,
+> and sanding them off is the failure this skill exists to prevent - just in the
+> opposite direction from the one this file is mostly about. Use this file to
+> catch machine habits creeping into a voice, not to normalise a voice.
+
 ## Contents
 
 1. Building the voice fingerprint
@@ -103,16 +112,19 @@ This is subtler than vocabulary and matters more.
 
 Run every item. Rewrite where it fails - do not rationalise a pass.
 
-1. Zero em dashes (unless the samples use them).
+Items 1 to 4 apply only where the voice profile is silent - if the samples use
+the construction, it stays. Items 5 to 13 apply always.
+
+1. No em dashes.
 2. No "not X, it's Y" construction anywhere.
 3. No signposting phrases ("here's the thing," "the bottom line," "let that sink in," "what's interesting is").
-4. No word from the section 5 list survives, unless the samples use it.
-5. Sentence lengths vary - the longest is at least twice the shortest.
-6. The three items are not given identical structure or identical length.
+4. No word from the section 5 list survives.
+5. Sentence lengths vary rather than running uniformly medium.
+6. The three items are not given identical structure and identical length - whichever matters most gets more room.
 7. The post contains at least three concrete specifics (name, number, date) that could only come from having read the sources.
-8. The post takes a position a reasonable reader could argue with.
+8. Somewhere in the post there is a line the author is actually asserting, that a reader could argue with.
 9. No first-person experience, conversation, client or feeling that the user did not actually report.
-10. No engagement bait closing; any question is one the user would genuinely want answered.
-11. Emoji, hashtags and line-break style match the samples, including when the answer is "none."
-12. Length is 1,300 to 2,100 characters.
-13. Read against two real samples: an outside reader could not pick out the drafted one.
+10. Any closing question is a real one on a contested point, not "Thoughts?" or "Drop a comment below."
+11. Emoji, hashtags, section headers, list markers and line-break style match the samples - including when the answer is "none," and including when the answer is "yes, quite a few."
+12. Length is within the range in the voice profile.
+13. Read against two real samples: an outside reader could not pick out the drafted one. Check this in both directions - too polished and too generic are the usual failures, but so is a post that avoids the author's own habits.

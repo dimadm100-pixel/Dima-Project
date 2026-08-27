@@ -2,7 +2,9 @@
 
 ## Length
 
-Target **1,300 to 2,100 characters**, roughly 200 to 320 words. That is enough for three items with a real thought attached to each, plus an opening and a close, and short enough to finish on a phone.
+`profile/voice-profile.md` records the length the user actually writes at, and that figure governs. The numbers here are the fallback when it is silent.
+
+Default target **1,300 to 2,100 characters**, roughly 200 to 320 words. That is enough for three items with a real thought attached to each, plus an opening and a close, and short enough to finish on a phone.
 
 Under 900 characters, three items cannot get more than a headline each and the post reads as a list. Over 2,400 the drop-off is steep. LinkedIn's hard limit is 3,000 characters; there is no reason to go near it.
 
@@ -53,4 +55,4 @@ Naming the outlet inside the post ("per the FT," "in their Q3 filing") is differ
 
 ## Hashtags and tagging
 
-Two or three hashtags maximum, and only if the samples use them. Tagging a company or person mentioned in an item can help reach, but only when the mention is positive or neutral - never tag someone into criticism on their behalf. Flag any tagging suggestion in the "Before you post" note and let the user decide.
+Two or three hashtags maximum, and only if the samples use them. Many strong finance accounts use none at all; if the samples have none, adding them is a visible change in voice. Tagging a company or person mentioned in an item can help reach, but only when the mention is positive or neutral - never tag someone into criticism on their behalf. Flag any tagging suggestion in the "Before you post" note and let the user decide.

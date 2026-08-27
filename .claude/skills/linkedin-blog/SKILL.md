@@ -49,9 +49,11 @@ If the three best items genuinely have nothing in common, that is fine and worth
 
 Read `references/human-voice.md` and `references/post-craft.md`, then write.
 
-Target 1,300 to 2,100 characters, roughly 200 to 320 words - long enough that each item gets a real thought rather than a headline, short enough that a reader on a phone finishes it. LinkedIn hard-caps at 3,000 characters; never approach that.
+Length comes from `profile/voice-profile.md`, which records the range the user actually writes in. Use that. Where the profile gives no figure, 1,300 to 2,100 characters is a reasonable default - long enough that each item gets a real thought rather than a headline, short enough that a reader on a phone finishes it. LinkedIn hard-caps at 3,000 characters; never approach that.
 
-Match the fingerprint in `profile/voice-profile.md` on the things a reader actually registers: sentence rhythm, paragraph shape, whether the user uses line breaks as punctuation, their level of formality and jargon, how they open, how they close, whether they use emoji or hashtags at all. When the fingerprint and this skill's generic advice disagree, the fingerprint wins - it is evidence about the actual person, this file is a default.
+Match the fingerprint on the things a reader actually registers: sentence rhythm, paragraph shape, section headers, how lists are formatted, level of formality and jargon, how they open, how they close, whether they use emoji or hashtags at all.
+
+**When the fingerprint and `references/human-voice.md` disagree, the fingerprint wins, every time.** That file catalogues habits that commonly signal machine-written text, but plenty of real people write with em dashes, emoji headers, tidy lists and a closing question. If those appear in the samples, they are this person's voice and removing them makes the post less authentic, not more. The failure to guard against is not "the post broke a style rule" - it is "this doesn't sound like me." Apply `human-voice.md` only where the samples are silent.
 
 Where the post would be stronger with something only the user knows - what they saw in their own work this week, a client situation, their real position on a contested point - do not invent it. Write the post so it stands without it, and flag the opportunity in the "Before you post" note.
 

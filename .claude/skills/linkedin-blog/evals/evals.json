@@ -1,27 +1,27 @@
 {
   "skill_name": "linkedin-blog",
-  "notes": "Run with the skill's profile/ directory pointed at evals/fixtures/profile/ so voice matching is checked against a known, distinctive persona rather than the user's private data.",
+  "notes": "Evals 0-2 run against the author's real profile/ directory. Eval 3 tests the uncalibrated bootstrap path and needs a profile/ directory restored from the blank templates (see git history for the initial commit of profile/).",
   "evals": [
     {
       "id": 0,
       "name": "bare-trigger-phrase",
       "prompt": "LINKEDIN BLOG",
       "expected_output": "A single ready-to-paste LinkedIn post, 1300-2100 characters, covering three separate items from the past seven days that fit the fixture persona's beats, tied together by an arguable throughline. Written in Maya's voice: British spelling, no contractions, no emoji, no hashtags, no lists, opens on a hard number or fact, flat close. Followed by a Sources block with three dated URLs that were actually opened, and a short Before you post note.",
-      "files": ["evals/fixtures/profile/"]
+      "files": []
     },
     {
       "id": 1,
       "name": "indirect-request-no-trigger-word",
       "prompt": "i've not posted in about three weeks and it's showing. can you put something together for linkedin covering what's actually happened recently that my followers would care about? something with a bit of substance, not a two liner",
       "expected_output": "The skill triggers despite the trigger phrase never appearing. Same output contract as eval 0. Should not ask a round of clarifying questions before working, since the fixture profile is already calibrated.",
-      "files": ["evals/fixtures/profile/"]
+      "files": []
     },
     {
       "id": 2,
       "name": "rework-ai-sounding-draft",
       "prompt": "I drafted this myself but a colleague said it reads like ChatGPT wrote it and honestly she's right. Can you fix it?\n\n🚀 Three game-changing developments are reshaping the logistics landscape this week!\n\nIn today's fast-paced supply chain environment, staying ahead means understanding the forces at play. Here's what caught my eye:\n\n✅ Carrier alliances are shifting - this isn't just a reshuffle, it's a fundamental realignment.\n✅ New EU regulations are coming into force - and the implications are profound.\n✅ Automation adoption is accelerating - unlocking unprecedented efficiency gains.\n\nThe key takeaway? The companies that will thrive are those that leverage these seismic shifts to build robust, future-proof operations.\n\nAt the end of the day, it's not about reacting to change - it's about anticipating it.\n\nWhat's your take? Drop a comment below! 👇\n\n#SupplyChain #Logistics #Innovation #FutureOfWork #DigitalTransformation",
       "expected_output": "A rewritten post with every AI tell removed: no emoji, no checkmark bullets, no hashtag block, no 'not X it's Y' construction, no 'game-changing'/'unlocking'/'robust'/'leverage'/'key takeaway'/'at the end of the day'/'in today's fast-paced', no engagement-bait close. The three vague claims are replaced with or grounded in real, dated, verified items, since the original names nothing specific. Matches the fixture voice.",
-      "files": ["evals/fixtures/profile/"]
+      "files": []
     },
     {
       "id": 3,
