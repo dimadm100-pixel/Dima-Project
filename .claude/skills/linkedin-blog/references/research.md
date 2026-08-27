@@ -36,6 +36,22 @@ For each item you keep, be able to state:
 
 If the last two are hard to write, the item is filler. Drop it.
 
+## When sources cannot be opened
+
+Some environments block outbound page fetches and leave only search available.
+Do not quietly fall back to writing from snippets as though they were verified -
+that is the failure this section exists to prevent.
+
+Instead: corroborate each fact across at least two independent searches phrased
+differently, prefer figures that appear identically in results from unrelated
+outlets, and drop any number that appears only once. Where two results disagree,
+either use the weaker claim both support or leave the point out.
+
+Then say so plainly in the "Before you post" note - list which specific figures
+the author should confirm against the original source before publishing. A post
+under their name with an unverified number in it is their problem, not yours, so
+the flag has to be explicit rather than a general disclaimer.
+
 ## Choose
 
 Prefer items that:
