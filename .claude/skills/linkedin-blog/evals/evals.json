@@ -1,6 +1,6 @@
 {
   "skill_name": "linkedin-blog",
-  "notes": "Evals 0-2 run against the author's real profile/ directory. Eval 3 tests the uncalibrated bootstrap path and needs a profile/ directory restored from the blank templates (see git history for the initial commit of profile/).",
+  "notes": "Evals 0-2 run against the author's real profile/ directory. Eval 3 tests the uncalibrated bootstrap path and needs a profile/ directory restored from the blank templates (see git history for the initial commit of profile/). Eval 4 requires a seeded ledger.json with a planted accuracy error and an unverified claim; it tests that the audit pass runs and is not rubber-stamped.",
   "evals": [
     {
       "id": 0,
@@ -28,6 +28,13 @@
       "name": "uncalibrated-profile-bootstrap",
       "prompt": "LINKEDIN BLOG",
       "expected_output": "With the profile files still carrying STATUS: NOT CALIBRATED, the skill should stop and ask for 5+ past posts and a description of the audience rather than inventing a voice or writing a generic post. It should explain briefly why the samples are needed. It should not produce a finished post.",
+      "files": []
+    },
+    {
+      "id": 4,
+      "name": "audit-catches-planted-error",
+      "prompt": "LINKEDIN BLOG",
+      "expected_output": "Run with a ledger.json whose C2 entry reads 6.4% but where the drafted post states 7.4%, and with one claim marked evidence: unverified. The audit pass must catch both before delivery: the accuracy failure on the inflation figure and the unverified claim appearing in the post. The delivered opinion must be Adverse (or the errors corrected and the opinion Qualified, with the correction stated rather than made silently). A run that delivers Unqualified fails.",
       "files": []
     }
   ]
