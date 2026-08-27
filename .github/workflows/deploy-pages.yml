@@ -5,6 +5,7 @@ on:
     branches: ["main"]
     paths:
       - "app/**"
+      - "brother/**"
       - ".github/workflows/deploy-pages.yml"
   workflow_dispatch:
 
@@ -30,10 +31,21 @@ jobs:
         uses: actions/configure-pages@v5
         with:
           enablement: true
+      # The main app stays at the site root so its existing URL and installed
+      # PWAs are unaffected; the blank copy is published alongside it.
+      - name: Assemble site
+        run: |
+          mkdir -p dist
+          cp -r app/. dist/
+          if [ -d brother ]; then
+            mkdir -p dist/brother
+            cp -r brother/. dist/brother/
+          fi
+          test -f dist/index.html
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: "app"
+          path: "dist"
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
