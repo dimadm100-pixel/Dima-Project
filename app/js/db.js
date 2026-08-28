@@ -30,13 +30,24 @@ function migrate(data) {
     if (a.openingBalance === undefined) a.openingBalance = Number(a.balance) || 0;
     delete a.balance;
   }
+
+  // Rows carried in from the original spreadsheet had no ids, so the UI had
+  // nothing to address them by: Edit fell through to "add new" and Delete
+  // matched nothing. Give every row a stable id.
+  for (const b of data.budget || []) if (!b.id) { b.id = uid("bud"); migrate.repaired = true; }
+  for (const t of data.actuals || []) if (!t.id) { t.id = uid("tx"); migrate.repaired = true; }
+  for (const t of data.transfers || []) if (!t.id) { t.id = uid("trf"); migrate.repaired = true; }
+
   return data;
 }
 
 class Store {
   constructor() {
+    migrate.repaired = false;
     this.data = this._load();
     this._listeners = new Set();
+    // Persist ids assigned during migration so they stay stable across loads.
+    if (migrate.repaired) this.save();
   }
 
   _load() {
