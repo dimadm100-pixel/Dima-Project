@@ -56,6 +56,35 @@ a { color: inherit; }
 
 .topbar .actions { display: flex; gap: 8px; }
 
+/* Two-page switcher (Finance <-> Personal), sitting right under the topbar
+ * on both pages. Picks up whichever accent the page defines. */
+.page-switch {
+  display: flex;
+  gap: 6px;
+  width: 100%;
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 10px 16px 0;
+}
+.page-switch a {
+  flex: 1;
+  text-align: center;
+  text-decoration: none;
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  border-radius: 999px;
+  padding: 8px 12px;
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.page-switch a.active {
+  background: var(--accent-fade);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
 .icon-btn {
   background: var(--bg-elev);
   border: 1px solid var(--border);
@@ -431,6 +460,8 @@ input[type="checkbox"] {
 
 @media (min-width: 860px) {
   main#view { max-width: 980px; padding-bottom: 40px; }
+  .page-switch { max-width: 980px; }
+  .page-switch a { flex: 0 1 auto; padding: 8px 20px; }
   .bottom-nav { display: none; }
   .desktop-nav {
     display: flex;

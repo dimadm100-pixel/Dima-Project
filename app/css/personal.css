@@ -1,0 +1,149 @@
+/* Personal page.
+ *
+ * Loaded on top of style.css, so the shell -- background, fonts, spacing,
+ * cards, buttons, badges -- is literally the finance app's. Only the accent
+ * changes (gold instead of teal) plus the few components this page adds. */
+
+:root {
+  --accent: #f2c14e;
+  --accent-2: #d9a441;
+  --accent-fade: rgba(242, 193, 78, 0.16);
+  --on-accent: #1a1206;
+}
+
+/* style.css hardcodes a dark green ink for text sitting on the accent; on gold
+ * it wants a dark brown instead. `.btn.secondary` / `.btn.danger` are more
+ * specific there, so they keep their own colours. */
+.btn { color: var(--on-accent); }
+.segmented button.active { color: var(--on-accent); }
+
+.today-chip {
+  color: var(--text-dim);
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 4px;
+}
+.card-head h2 { margin: 0; }
+.card-head .head-actions { display: flex; gap: 6px; flex-shrink: 0; }
+.card-sub {
+  color: var(--text-dim);
+  font-size: 12px;
+  margin: 0 0 12px;
+  line-height: 1.4;
+}
+
+/* One line of a list: [time] [text] [row actions] */
+.p-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+}
+.p-row:last-child { border-bottom: none; }
+.p-time {
+  flex-shrink: 0;
+  width: 50px;
+  padding-top: 2px;
+  font-size: 12px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--accent);
+}
+.p-time.none { color: var(--text-dim); font-weight: 600; }
+.p-main { flex: 1; min-width: 0; }
+.p-text { font-size: 14px; line-height: 1.35; overflow-wrap: anywhere; }
+.p-sub { color: var(--text-dim); font-size: 12px; margin-top: 3px; overflow-wrap: anywhere; }
+.p-row .row-actions { padding-top: 1px; gap: 4px; }
+.p-row .row-actions .mini-btn { padding: 4px 7px; }
+.p-row.done .p-text { text-decoration: line-through; color: var(--text-dim); }
+.p-row.done .p-time { color: var(--text-dim); }
+
+.p-check {
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  margin-top: 1px;
+  border-radius: 7px;
+  border: 1px solid var(--border);
+  background: var(--bg-elev-2);
+  color: transparent;
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+}
+.p-check.on { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+.p-check:active { transform: scale(0.94); }
+
+.mini-btn[disabled] { opacity: 0.3; cursor: default; }
+.mini-btn[disabled]:active { transform: none; }
+
+.quick-add { display: flex; gap: 8px; margin-top: 12px; }
+.quick-add input {
+  background: var(--bg-elev-2);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 15px;
+  font-family: inherit;
+  min-width: 0;
+}
+.quick-add input:focus { outline: none; border-color: var(--accent); }
+.quick-add input[type="time"] { width: 108px; flex-shrink: 0; }
+.quick-add input.grow { flex: 1; }
+
+/* Routine: one block per weekday, today's block picked out in gold. */
+.day-grid { display: grid; grid-template-columns: 1fr; gap: 10px; align-items: start; }
+@media (min-width: 560px) { .day-grid { grid-template-columns: 1fr 1fr; } }
+.day-block {
+  background: var(--bg-elev-2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 10px 12px;
+}
+.day-block.today { border-color: var(--accent); background: var(--accent-fade); }
+.day-block h3 {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 0 0 4px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-dim);
+}
+.day-block.today h3 { color: var(--accent); }
+.day-block .p-row { padding: 7px 0; }
+.day-block .p-row:last-child { border-bottom: none; }
+.day-block .empty-day { color: var(--text-dim); font-size: 12px; padding: 6px 0 8px; }
+
+/* Deadline flags: gold rail for the next 7 days, red once it's today or past.
+ * Every deadline row carries the same indent so flagged and unflagged rows
+ * still line up with each other. */
+.p-row.deadline { padding-left: 11px; }
+.p-row.soon { box-shadow: inset 3px 0 0 var(--accent); }
+.p-row.overdue { box-shadow: inset 3px 0 0 var(--danger); }
+.p-date {
+  flex-shrink: 0;
+  width: 78px;
+  padding-top: 2px;
+  font-size: 12px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-dim);
+}
+.p-row.soon .p-date { color: var(--accent); }
+.p-row.overdue .p-date { color: var(--danger); }
+
+.badge.mute { background: var(--bg-elev-2); color: var(--text-dim); }
