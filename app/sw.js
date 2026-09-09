@@ -1,9 +1,10 @@
-const CACHE_NAME = "dilmurod-finance-v13";
+const CACHE_NAME = "dilmurod-finance-v14";
 const ASSETS = [
   "./",
   "./index.html",
   "./personal.html",
   "./manifest.json",
+  "./personal.webmanifest",
   "./css/style.css",
   "./css/personal.css",
   "./js/app.js",
@@ -34,6 +35,9 @@ const ASSETS = [
   "./js/pages/settings.js",
   "./js/pages/transactionForm.js",
   "./icons/icon-192.png",
+  "./icons/personal-192.png",
+  "./icons/personal-512.png",
+  "./icons/personal-maskable-512.png",
   "./icons/icon-512.png",
   "./icons/icon-maskable-512.png"
 ];

@@ -12,7 +12,9 @@ dropped on a phone and opened on its own:
     (not a module, so it also runs off file:// with no server)
   * the app icon inlined as a data: URI
   * the Finance/Personal switcher removed -- a lone file has nowhere to switch to
-  * the service worker registration removed -- there is no sw.js beside it
+  * the manifest link, install button and service worker registration removed --
+    a downloaded file cannot install itself as an app; that needs the hosted
+    page, which is what app/personal.webmanifest is for
 
 Output: personal-standalone.html at the repo root.
 
@@ -73,10 +75,12 @@ def build_script():
         parts.append(f"// ---- {rel} ----\n{body}")
 
     bundle = "\n\n".join(parts)
-    # No sw.js ships beside a standalone file, so the registration is dead code.
-    bundle = re.sub(r"\n// The finance app registers.*?\n}\s*$", "", bundle, flags=re.DOTALL)
-    if "serviceWorker" in bundle:
-        sys.exit("Service worker registration still present -- update the pattern in this script.")
+    # A standalone file has no sw.js beside it and cannot be installed, so the
+    # whole PWA block at the end of personal.js is dead code here.
+    bundle = re.sub(r"\n// ---- PWA install \+ service worker ----.*$", "", bundle, flags=re.DOTALL)
+    for dead in ("serviceWorker", "beforeinstallprompt"):
+        if dead in bundle:
+            sys.exit(f"{dead} still present -- update the pattern in this script.")
     # One scope of its own, so nothing leaks into globals.
     return "(function () {\n" + bundle + "\n})();"
 
@@ -85,7 +89,7 @@ def main():
     html = read("personal.html")
 
     styles = "\n\n".join(f"/* ---- {rel} ---- */\n{read(rel)}" for rel in STYLES)
-    icon = base64.b64encode((APP / "icons/icon-192.png").read_bytes()).decode("ascii")
+    icon = base64.b64encode((APP / "icons/personal-192.png").read_bytes()).decode("ascii")
     icon_uri = f"data:image/png;base64,{icon}"
 
     # Stylesheet links -> one inline block.
@@ -93,7 +97,11 @@ def main():
     html = html.replace("</head>", f"  <style>\n{styles}\n  </style>\n</head>", 1)
 
     # Icons -> inlined, so the file carries its own.
-    html = re.sub(r'href="\./icons/icon-192\.png"', f'href="{icon_uri}"', html)
+    html = re.sub(r'href="\./icons/personal-192\.png"', lambda _: f'href="{icon_uri}"', html)
+
+    # Nothing here can install the page as an app -- that needs the hosted copy.
+    html = re.sub(r'\n *<link rel="manifest"[^>]*>', "", html)
+    html = re.sub(r'\n *<button class="icon-btn" id="install-btn".*?</button>', "", html)
 
     # The page switcher points at a sibling page that a lone file does not have.
     html = re.sub(r'\n *<nav class="page-switch">.*?</nav>', "", html, flags=re.DOTALL)
@@ -102,8 +110,9 @@ def main():
     # JS (full of backslashes in its regexes) is not read as a re template.
     script = "\n  <script>\n" + build_script() + "\n  </script>"
     html = re.sub(r'\n *<script type="module"[^>]*></script>', lambda _: script, html)
-    if "src=" in html or "<link rel=\"stylesheet\"" in html:
-        sys.exit("An external reference survived -- the file would not be self-contained.")
+    leftover = re.findall(r'(?:src|href)="(?!data:)[^"]*"', html)
+    if leftover:
+        sys.exit(f"External references survived, so the file is not self-contained: {leftover}")
 
     html = html.replace("<!doctype html>\n", "<!doctype html>\n" + BANNER, 1)
     OUT.write_text(html, encoding="utf-8")

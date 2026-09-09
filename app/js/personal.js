@@ -557,10 +557,36 @@ if (todayChip) todayChip.textContent = `${dayLabel(todayDayKey())}, ${fmtDate(to
 
 render();
 
-// The finance app registers the service worker for the whole scope; this page
-// is inside it, so it works offline too once that has happened at least once.
+// ---- PWA install + service worker ----
+//
+// The page shares the finance app's service worker (its scope covers the whole
+// site), but declares its own manifest, so it installs to the home screen as
+// its own app with its own icon rather than as a shortcut into the tracker.
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => {
     navigator.serviceWorker.register("./sw.js").catch(() => {});
   });
 }
+
+const installBtn = document.getElementById("install-btn");
+let deferredInstallPrompt = null;
+
+window.addEventListener("beforeinstallprompt", (e) => {
+  e.preventDefault();
+  deferredInstallPrompt = e;
+  if (installBtn) installBtn.style.display = "flex";
+});
+
+if (installBtn) {
+  installBtn.addEventListener("click", async () => {
+    if (!deferredInstallPrompt) return;
+    deferredInstallPrompt.prompt();
+    await deferredInstallPrompt.userChoice;
+    deferredInstallPrompt = null;
+    installBtn.style.display = "none";
+  });
+}
+
+window.addEventListener("appinstalled", () => {
+  if (installBtn) installBtn.style.display = "none";
+});

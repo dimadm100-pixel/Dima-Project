@@ -24,6 +24,13 @@ One page per concern, all driven off a single transaction ledger so nothing can 
 - **Routine** — your standing weekly template (gym Mon–Fri, study blocks, and so on), shown day by day with today highlighted. **Copy today →** drops today's routine items into today's plan when you want them there.
 - **Notifications & Deadlines** — bills, exam dates, application deadlines. Sorted soonest-first, with a gold flag for anything inside 7 days and a red one for today or overdue.
 
+### Installing it as its own app
+
+The page ships its own `personal.webmanifest` and icons (`tools/make-personal-icons.py` draws them), so it installs to the home screen as a separate app from the tracker — its own gold checklist icon, opening straight to the Personal page. Like any PWA it has to be served over HTTPS for that, so install it from the deployed site, not from a local file:
+
+- **Android (Chrome)**: open the Personal page → tap ⬇️ in the header, or the menu → "Install app".
+- **iPhone (Safari)**: open the Personal page → Share → "Add to Home Screen".
+
 ### One-file version
 
 `personal-standalone.html` at the repo root is the same page folded into a single file — stylesheets, scripts and icon all inlined — so it can be downloaded and opened on its own with no server. Generated, not hand-written; re-run `python3 tools/make-standalone-personal.py` after changing the page to bring it back in sync. It keeps its data separately from the hosted page, since a browser treats a local file as its own origin.

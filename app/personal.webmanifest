@@ -1,0 +1,17 @@
+{
+  "id": "./personal.html",
+  "name": "Dilmurod Personal",
+  "short_name": "Personal",
+  "description": "Today's plan, the standing weekly routine, and upcoming deadlines.",
+  "start_url": "./personal.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#0b0f14",
+  "theme_color": "#0b0f14",
+  "orientation": "portrait-primary",
+  "icons": [
+    { "src": "icons/personal-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/personal-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/personal-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
