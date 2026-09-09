@@ -24,6 +24,10 @@ One page per concern, all driven off a single transaction ledger so nothing can 
 - **Routine** — your standing weekly template (gym Mon–Fri, study blocks, and so on), shown day by day with today highlighted. **Copy today →** drops today's routine items into today's plan when you want them there.
 - **Notifications & Deadlines** — bills, exam dates, application deadlines. Sorted soonest-first, with a gold flag for anything inside 7 days and a red one for today or overdue.
 
+### One-file version
+
+`personal-standalone.html` at the repo root is the same page folded into a single file — stylesheets, scripts and icon all inlined — so it can be downloaded and opened on its own with no server. Generated, not hand-written; re-run `python3 tools/make-standalone-personal.py` after changing the page to bring it back in sync. It keeps its data separately from the hosted page, since a browser treats a local file as its own origin.
+
 All data is stored locally on your device (localStorage) — nothing is sent anywhere. Use **Settings → Export data** regularly to back it up.
 
 ## Running it locally
