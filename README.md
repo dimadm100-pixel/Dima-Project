@@ -20,8 +20,8 @@ One page per concern, all driven off a single transaction ledger so nothing can 
 
 `app/personal.html` — same shell as the finance app (same dark navy, same fonts and spacing, same install/meta tags), with a gold accent so it's obvious which page you're on. The two are linked by the switcher at the top of both. Three sections, all saved to localStorage under their own key (`pft_dilmurod_personal_v1`), so finance data and personal data never touch:
 
-- **Today's Plan** — today's tasks and appointments, each with an optional time. Add, edit, delete, reorder, tick off. Nothing resets on its own; **Clear** empties the list when you decide the day is done.
-- **Routine** — your standing weekly template (gym Mon–Fri, study blocks, and so on), shown day by day with today highlighted. **Copy today →** drops today's routine items into today's plan when you want them there.
+- **Today's Plan** — today's tasks and appointments, each with an optional time or time range (11:30–12:30). Add, edit, delete, reorder, tick off. Nothing resets on its own; **Clear** empties the list when you decide the day is done.
+- **Routine** — your standing weekly template (gym Mon–Fri 07:00–08:00, study blocks, and so on), shown day by day with today highlighted. **Copy today →** drops today's routine items into today's plan when you want them there.
 - **Notifications & Deadlines** — bills, exam dates, application deadlines. Sorted soonest-first, with a gold flag for anything inside 7 days and a red one for today or overdue.
 
 ### Installing it as its own app

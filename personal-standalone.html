@@ -560,14 +560,19 @@ input[type="checkbox"] {
 }
 .p-row:last-child { border-bottom: none; }
 .p-time {
+  display: flex;
+  flex-direction: column;
   flex-shrink: 0;
-  width: 50px;
+  width: 54px;
   padding-top: 2px;
   font-size: 12px;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   color: var(--accent);
+  line-height: 1.35;
 }
+/* The end of an interval, stacked under its start and quieter than it. */
+.p-time-end { color: var(--text-dim); }
 .p-time.none { color: var(--text-dim); font-weight: 600; }
 .p-main { flex: 1; min-width: 0; }
 .p-text { font-size: 14px; line-height: 1.35; overflow-wrap: anywhere; }
@@ -596,7 +601,11 @@ input[type="checkbox"] {
 .mini-btn[disabled] { opacity: 0.3; cursor: default; }
 .mini-btn[disabled]:active { transform: none; }
 
-.quick-add { display: flex; gap: 8px; margin-top: 12px; }
+/* Wraps on a narrow phone: the from/to pair keeps one row, the task and its
+ * button drop to the next. */
+.quick-add { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.time-range { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+.range-sep { color: var(--text-dim); font-size: 13px; }
 .quick-add input {
   background: var(--bg-elev-2);
   border: 1px solid var(--border);
@@ -609,7 +618,7 @@ input[type="checkbox"] {
 }
 .quick-add input:focus { outline: none; border-color: var(--accent); }
 .quick-add input[type="time"] { width: 108px; flex-shrink: 0; }
-.quick-add input.grow { flex: 1; }
+.quick-add input.grow { flex: 1; min-width: 150px; }
 
 /* Routine: one block per weekday, today's block picked out in gold. */
 .day-grid { display: grid; grid-template-columns: 1fr; gap: 10px; align-items: start; }
@@ -657,6 +666,15 @@ input[type="checkbox"] {
 .p-row.overdue .p-date { color: var(--danger); }
 
 .badge.mute { background: var(--bg-elev-2); color: var(--text-dim); }
+
+/* On the narrowest phones the time, the tick and four buttons leave the text
+ * so little room that words break mid-word. Give the text a floor and let the
+ * buttons drop to their own line instead. */
+@media (max-width: 380px) {
+  .p-row { flex-wrap: wrap; }
+  .p-main { min-width: 130px; }
+  .p-row .row-actions { margin-left: auto; }
+}
 
   </style>
 </head>
@@ -947,12 +965,14 @@ function normalise(raw) {
     id: t.id || uid("task"),
     text: String(t.text || ""),
     time: typeof t.time === "string" ? t.time : "",
+    endTime: typeof t.endTime === "string" ? t.endTime : "",
     done: !!t.done
   }));
   const routine = (Array.isArray(raw.routine) ? raw.routine : []).map((r) => ({
     id: r.id || uid("rt"),
     text: String(r.text || ""),
     time: typeof r.time === "string" ? r.time : "",
+    endTime: typeof r.endTime === "string" ? r.endTime : "",
     days: Array.isArray(r.days) ? r.days.filter((d) => DAY_KEYS.includes(d)) : []
   }));
   const deadlines = (Array.isArray(raw.deadlines) ? raw.deadlines : []).map((d) => ({
@@ -1050,6 +1070,28 @@ function miniBtn(label, title, onClick, { danger = false, disabled = false } = {
   }, label);
 }
 
+// An item can be a moment (07:00) or an interval (07:00-08:00). The end time is
+// stacked under the start so the column stays narrow enough for a phone.
+function timeCell(item) {
+  const cell = el("div", { class: `p-time${item.time ? "" : " none"}` });
+  cell.appendChild(el("span", {}, item.time || "—"));
+  if (item.time && item.endTime) cell.appendChild(el("span", { class: "p-time-end" }, `–${item.endTime}`));
+  return cell;
+}
+
+// Start and end side by side, so an interval reads as one field, not two.
+function timeRangeField(startEl, endEl) {
+  const row = el("div", { class: "field-row" });
+  row.appendChild(field("From (optional)", startEl));
+  row.appendChild(field("To (optional)", endEl));
+  return row;
+}
+
+// An end time on its own says nothing, so it only survives with a start.
+function endFor(startValue, endValue) {
+  return startValue ? endValue || "" : "";
+}
+
 // Blank times sort last, so a timed item always sits above an untimed one.
 function byTime(a, b) {
   if (!a.time && !b.time) return 0;
@@ -1101,17 +1143,28 @@ function planCard() {
   }
 
   // Quick add: the common case is a line of text, so it shouldn't need a sheet.
-  const timeInput = el("input", { type: "time", "aria-label": "Time (optional)" });
+  const timeInput = el("input", { type: "time", "aria-label": "Start time (optional)" });
+  const endInput = el("input", { type: "time", "aria-label": "End time (optional)" });
   const textInput = el("input", { type: "text", class: "grow", placeholder: "Add a task…", "aria-label": "Task", autocomplete: "off" });
   const submit = () => {
     const text = textInput.value.trim();
     if (!text) { textInput.focus(); return; }
-    data.plan.push({ id: uid("task"), text, time: timeInput.value || "", done: false });
+    data.plan.push({
+      id: uid("task"),
+      text,
+      time: timeInput.value || "",
+      endTime: endFor(timeInput.value, endInput.value),
+      done: false
+    });
     commit();
   };
   textInput.addEventListener("keydown", (e) => { if (e.key === "Enter") submit(); });
   const quick = el("div", { class: "quick-add" });
-  quick.appendChild(timeInput);
+  const range = el("div", { class: "time-range" });
+  range.appendChild(timeInput);
+  range.appendChild(el("span", { class: "range-sep" }, "→"));
+  range.appendChild(endInput);
+  quick.appendChild(range);
   quick.appendChild(textInput);
   quick.appendChild(el("button", { class: "btn small", onClick: submit }, "Add"));
   card.appendChild(quick);
@@ -1129,7 +1182,7 @@ function planRow(task, i) {
     onClick: () => { task.done = !task.done; commit(); }
   }, "✓"));
 
-  row.appendChild(el("div", { class: `p-time${task.time ? "" : " none"}` }, task.time || "—"));
+  row.appendChild(timeCell(task));
 
   const main = el("div", { class: "p-main" });
   main.appendChild(el("div", { class: "p-text" }, task.text));
@@ -1153,10 +1206,11 @@ function planRow(task, i) {
 function openPlanEditor(task) {
   const text = el("input", { type: "text", value: task ? task.text : "", placeholder: "e.g. Meet the bank", autocomplete: "off" });
   const time = el("input", { type: "time", value: task ? task.time : "" });
+  const end = el("input", { type: "time", value: task ? task.endTime : "" });
 
   const wrap = el("div", {});
   wrap.appendChild(field("Task or appointment", text));
-  wrap.appendChild(field("Time (optional)", time));
+  wrap.appendChild(timeRangeField(time, end));
   wrap.appendChild(el("button", {
     class: "btn",
     onClick: () => {
@@ -1165,8 +1219,15 @@ function openPlanEditor(task) {
       if (task) {
         task.text = value;
         task.time = time.value || "";
+        task.endTime = endFor(time.value, end.value);
       } else {
-        data.plan.push({ id: uid("task"), text: value, time: time.value || "", done: false });
+        data.plan.push({
+          id: uid("task"),
+          text: value,
+          time: time.value || "",
+          endTime: endFor(time.value, end.value),
+          done: false
+        });
       }
       closeSheet();
       commit();
@@ -1220,7 +1281,7 @@ function routineCard() {
 
 function routineRow(item) {
   const row = el("div", { class: "p-row" });
-  row.appendChild(el("div", { class: `p-time${item.time ? "" : " none"}` }, item.time || "—"));
+  row.appendChild(timeCell(item));
 
   const main = el("div", { class: "p-main" });
   // No day list here: an item already shows up under every day it runs on.
@@ -1243,6 +1304,7 @@ function routineRow(item) {
 function openRoutineEditor(item) {
   const text = el("input", { type: "text", value: item ? item.text : "", placeholder: "e.g. Gym", autocomplete: "off" });
   const time = el("input", { type: "time", value: item ? item.time : "" });
+  const end = el("input", { type: "time", value: item ? item.endTime : "" });
   const selected = new Set(item ? item.days : []);
 
   const chipRow = el("div", { class: "chip-row" });
@@ -1276,7 +1338,7 @@ function openRoutineEditor(item) {
 
   const wrap = el("div", {});
   wrap.appendChild(field("What is it", text));
-  wrap.appendChild(field("Time (optional)", time));
+  wrap.appendChild(timeRangeField(time, end));
   wrap.appendChild(daysWrap);
   wrap.appendChild(el("button", {
     class: "btn",
@@ -1289,9 +1351,16 @@ function openRoutineEditor(item) {
       if (item) {
         item.text = value;
         item.time = time.value || "";
+        item.endTime = endFor(time.value, end.value);
         item.days = days;
       } else {
-        data.routine.push({ id: uid("rt"), text: value, time: time.value || "", days });
+        data.routine.push({
+          id: uid("rt"),
+          text: value,
+          time: time.value || "",
+          endTime: endFor(time.value, end.value),
+          days
+        });
       }
       closeSheet();
       commit();
@@ -1309,9 +1378,17 @@ function copyTodayIntoPlan() {
   let added = 0;
   for (const item of items) {
     const already = data.plan.some((t) =>
-      t.text.trim().toLowerCase() === item.text.trim().toLowerCase() && (t.time || "") === (item.time || ""));
+      t.text.trim().toLowerCase() === item.text.trim().toLowerCase() &&
+      (t.time || "") === (item.time || "") &&
+      (t.endTime || "") === (item.endTime || ""));
     if (already) continue;
-    data.plan.push({ id: uid("task"), text: item.text, time: item.time || "", done: false });
+    data.plan.push({
+      id: uid("task"),
+      text: item.text,
+      time: item.time || "",
+      endTime: item.endTime || "",
+      done: false
+    });
     added++;
   }
   commit();
