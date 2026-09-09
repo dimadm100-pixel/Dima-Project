@@ -50,14 +50,19 @@
 }
 .p-row:last-child { border-bottom: none; }
 .p-time {
+  display: flex;
+  flex-direction: column;
   flex-shrink: 0;
-  width: 50px;
+  width: 54px;
   padding-top: 2px;
   font-size: 12px;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   color: var(--accent);
+  line-height: 1.35;
 }
+/* The end of an interval, stacked under its start and quieter than it. */
+.p-time-end { color: var(--text-dim); }
 .p-time.none { color: var(--text-dim); font-weight: 600; }
 .p-main { flex: 1; min-width: 0; }
 .p-text { font-size: 14px; line-height: 1.35; overflow-wrap: anywhere; }
@@ -86,7 +91,11 @@
 .mini-btn[disabled] { opacity: 0.3; cursor: default; }
 .mini-btn[disabled]:active { transform: none; }
 
-.quick-add { display: flex; gap: 8px; margin-top: 12px; }
+/* Wraps on a narrow phone: the from/to pair keeps one row, the task and its
+ * button drop to the next. */
+.quick-add { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.time-range { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+.range-sep { color: var(--text-dim); font-size: 13px; }
 .quick-add input {
   background: var(--bg-elev-2);
   border: 1px solid var(--border);
@@ -99,7 +108,7 @@
 }
 .quick-add input:focus { outline: none; border-color: var(--accent); }
 .quick-add input[type="time"] { width: 108px; flex-shrink: 0; }
-.quick-add input.grow { flex: 1; }
+.quick-add input.grow { flex: 1; min-width: 150px; }
 
 /* Routine: one block per weekday, today's block picked out in gold. */
 .day-grid { display: grid; grid-template-columns: 1fr; gap: 10px; align-items: start; }
@@ -147,3 +156,12 @@
 .p-row.overdue .p-date { color: var(--danger); }
 
 .badge.mute { background: var(--bg-elev-2); color: var(--text-dim); }
+
+/* On the narrowest phones the time, the tick and four buttons leave the text
+ * so little room that words break mid-word. Give the text a floor and let the
+ * buttons drop to their own line instead. */
+@media (max-width: 380px) {
+  .p-row { flex-wrap: wrap; }
+  .p-main { min-width: 130px; }
+  .p-row .row-actions { margin-left: auto; }
+}
