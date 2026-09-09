@@ -966,6 +966,7 @@ function normalise(raw) {
     text: String(t.text || ""),
     time: typeof t.time === "string" ? t.time : "",
     endTime: typeof t.endTime === "string" ? t.endTime : "",
+    note: String(t.note || ""),
     done: !!t.done
   }));
   const routine = (Array.isArray(raw.routine) ? raw.routine : []).map((r) => ({
@@ -973,6 +974,7 @@ function normalise(raw) {
     text: String(r.text || ""),
     time: typeof r.time === "string" ? r.time : "",
     endTime: typeof r.endTime === "string" ? r.endTime : "",
+    note: String(r.note || ""),
     days: Array.isArray(r.days) ? r.days.filter((d) => DAY_KEYS.includes(d)) : []
   }));
   const deadlines = (Array.isArray(raw.deadlines) ? raw.deadlines : []).map((d) => ({
@@ -981,7 +983,16 @@ function normalise(raw) {
     date: typeof d.date === "string" ? d.date : todayStr(),
     note: String(d.note || "")
   }));
-  return { version: 1, plan, routine, deadlines };
+  // Which day's routine has already been dropped into the plan, so it happens
+  // once a day rather than on every render.
+  const meta = raw.meta && typeof raw.meta === "object" ? raw.meta : {};
+  return {
+    version: 1,
+    plan,
+    routine,
+    deadlines,
+    meta: { autoFilledFor: typeof meta.autoFilledFor === "string" ? meta.autoFilledFor : "" }
+  };
 }
 
 function load() {
@@ -1128,7 +1139,7 @@ function planCard() {
   card.appendChild(el("p", { class: "card-sub" },
     data.plan.length
       ? `${done} of ${data.plan.length} done · clear it yourself whenever you want a fresh day.`
-      : "Whatever you're doing today. Nothing here resets on its own — you clear it."));
+      : "Whatever you're doing today. The day's routine lands here each morning; clearing it is always yours to do."));
 
   if (data.plan.length) {
     const bar = el("div", { class: "progress-bar", style: "margin-bottom: 6px;" });
@@ -1154,6 +1165,7 @@ function planCard() {
       text,
       time: timeInput.value || "",
       endTime: endFor(timeInput.value, endInput.value),
+      note: "",
       done: false
     });
     commit();
@@ -1186,6 +1198,7 @@ function planRow(task, i) {
 
   const main = el("div", { class: "p-main" });
   main.appendChild(el("div", { class: "p-text" }, task.text));
+  if (task.note) main.appendChild(el("div", { class: "p-sub" }, task.note));
   row.appendChild(main);
 
   const actions = el("div", { class: "row-actions" });
@@ -1207,10 +1220,12 @@ function openPlanEditor(task) {
   const text = el("input", { type: "text", value: task ? task.text : "", placeholder: "e.g. Meet the bank", autocomplete: "off" });
   const time = el("input", { type: "time", value: task ? task.time : "" });
   const end = el("input", { type: "time", value: task ? task.endTime : "" });
+  const note = el("input", { type: "text", value: task ? task.note : "", placeholder: "Optional detail", autocomplete: "off" });
 
   const wrap = el("div", {});
   wrap.appendChild(field("Task or appointment", text));
   wrap.appendChild(timeRangeField(time, end));
+  wrap.appendChild(field("Note (optional)", note));
   wrap.appendChild(el("button", {
     class: "btn",
     onClick: () => {
@@ -1220,12 +1235,14 @@ function openPlanEditor(task) {
         task.text = value;
         task.time = time.value || "";
         task.endTime = endFor(time.value, end.value);
+        task.note = note.value.trim();
       } else {
         data.plan.push({
           id: uid("task"),
           text: value,
           time: time.value || "",
           endTime: endFor(time.value, end.value),
+          note: note.value.trim(),
           done: false
         });
       }
@@ -1253,7 +1270,8 @@ function routineCard() {
   headActions.appendChild(miniBtn("＋ Add", "Add a routine item", () => openRoutineEditor(null)));
   head.appendChild(headActions);
   card.appendChild(head);
-  card.appendChild(el("p", { class: "card-sub" }, "Your standing weekly schedule. It stays put — today's plan is the part that changes."));
+  card.appendChild(el("p", { class: "card-sub" },
+    "Your standing weekly schedule. Each day's items are added to that day's plan automatically, the first time you open the page that day."));
 
   if (!data.routine.length) {
     card.appendChild(el("div", { class: "empty-state" }, "No routine yet. Add gym, study blocks, classes — anything that repeats weekly."));
@@ -1286,6 +1304,7 @@ function routineRow(item) {
   const main = el("div", { class: "p-main" });
   // No day list here: an item already shows up under every day it runs on.
   main.appendChild(el("div", { class: "p-text" }, item.text));
+  if (item.note) main.appendChild(el("div", { class: "p-sub" }, item.note));
   row.appendChild(main);
 
   const actions = el("div", { class: "row-actions" });
@@ -1305,6 +1324,7 @@ function openRoutineEditor(item) {
   const text = el("input", { type: "text", value: item ? item.text : "", placeholder: "e.g. Gym", autocomplete: "off" });
   const time = el("input", { type: "time", value: item ? item.time : "" });
   const end = el("input", { type: "time", value: item ? item.endTime : "" });
+  const note = el("input", { type: "text", value: item ? item.note : "", placeholder: "Optional detail", autocomplete: "off" });
   const selected = new Set(item ? item.days : []);
 
   const chipRow = el("div", { class: "chip-row" });
@@ -1339,6 +1359,7 @@ function openRoutineEditor(item) {
   const wrap = el("div", {});
   wrap.appendChild(field("What is it", text));
   wrap.appendChild(timeRangeField(time, end));
+  wrap.appendChild(field("Note (optional)", note));
   wrap.appendChild(daysWrap);
   wrap.appendChild(el("button", {
     class: "btn",
@@ -1352,6 +1373,7 @@ function openRoutineEditor(item) {
         item.text = value;
         item.time = time.value || "";
         item.endTime = endFor(time.value, end.value);
+        item.note = note.value.trim();
         item.days = days;
       } else {
         data.routine.push({
@@ -1359,6 +1381,7 @@ function openRoutineEditor(item) {
           text: value,
           time: time.value || "",
           endTime: endFor(time.value, end.value),
+          note: note.value.trim(),
           days
         });
       }
@@ -1371,10 +1394,11 @@ function openRoutineEditor(item) {
   setTimeout(() => text.focus(), 50);
 }
 
-// Pulling the routine into today's plan is deliberately a button, not something
-// that happens on its own: the plan is only ever changed by hand.
-function copyTodayIntoPlan() {
-  const items = data.routine.filter((r) => r.days.includes(todayDayKey())).sort(byTime);
+// Adds a day's routine to the plan, skipping anything already sitting there --
+// matched on the whole slot, so the same thing at a different time is a
+// different thing. Only ever adds; removing is always the owner's call.
+function addRoutineToPlan(dayKey) {
+  const items = data.routine.filter((r) => r.days.includes(dayKey)).sort(byTime);
   let added = 0;
   for (const item of items) {
     const already = data.plan.some((t) =>
@@ -1387,10 +1411,32 @@ function copyTodayIntoPlan() {
       text: item.text,
       time: item.time || "",
       endTime: item.endTime || "",
+      note: item.note || "",
       done: false
     });
     added++;
   }
+  return added;
+}
+
+// The routine is a standing schedule, so each day's items belong in that day's
+// plan without being asked for. This runs once per day -- the date it last ran
+// for is remembered -- so anything deleted afterwards stays deleted, and a plan
+// cleared later in the day does not refill itself. Nothing is ever removed
+// here: emptying the plan is still only ever done by hand.
+function fillTodaysRoutine() {
+  const today = todayStr();
+  if (data.meta.autoFilledFor === today) return 0;
+  const added = addRoutineToPlan(todayDayKey());
+  data.meta.autoFilledFor = today;
+  save();
+  return added;
+}
+
+// The button covers the rest: routine items added later in the day, or a plan
+// deliberately re-filled after clearing it.
+function copyTodayIntoPlan() {
+  const added = addRoutineToPlan(todayDayKey());
   commit();
   showToast(added ? `Added ${added} routine item${added === 1 ? "" : "s"} to today.` : "Today's routine is already in the plan.");
 }
@@ -1542,7 +1588,11 @@ function render() {
 const todayChip = document.getElementById("today-chip");
 if (todayChip) todayChip.textContent = `${dayLabel(todayDayKey())}, ${fmtDate(todayStr())}`;
 
+const filledIn = fillTodaysRoutine();
 render();
+if (filledIn) {
+  showToast(`Added ${filledIn} ${dayLabel(todayDayKey())} routine item${filledIn === 1 ? "" : "s"} to your plan.`);
+}
 
 })();
   </script>
