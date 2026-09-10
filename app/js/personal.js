@@ -5,7 +5,7 @@
 // localStorage key on this device, no backend -- but under its own key, so the
 // two never read or overwrite each other's data.
 
-import { el, todayStr, fmtDate, daysBetween } from "./utils.js";
+import { el, todayStr, fmtDate, daysBetween, addDays } from "./utils.js";
 import { storageKey } from "./config.js";
 
 const STORAGE_KEY = storageKey("personal_v1");
@@ -24,6 +24,7 @@ const DAY_KEYS = DAYS.map((d) => d.key);
 const DAY_KEY_BY_JS_INDEX = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
 
 const todayDayKey = () => DAY_KEY_BY_JS_INDEX[new Date().getDay()];
+const tomorrowDayKey = () => DAY_KEY_BY_JS_INDEX[(new Date().getDay() + 1) % 7];
 const dayLabel = (key) => (DAYS.find((d) => d.key === key) || {}).label || key;
 
 function uid(prefix) {
@@ -32,8 +33,10 @@ function uid(prefix) {
 
 // ---------- storage ----------
 
-function normalise(raw) {
-  const plan = (Array.isArray(raw.plan) ? raw.plan : []).map((t) => ({
+// Today's plan and tomorrow's hold the same kind of thing, so they are read,
+// rendered and edited by the same code.
+function normaliseDayList(raw) {
+  return (Array.isArray(raw) ? raw : []).map((t) => ({
     id: t.id || uid("task"),
     text: String(t.text || ""),
     time: typeof t.time === "string" ? t.time : "",
@@ -41,6 +44,11 @@ function normalise(raw) {
     note: String(t.note || ""),
     done: !!t.done
   }));
+}
+
+function normalise(raw) {
+  const plan = normaliseDayList(raw.plan);
+  const tomorrow = normaliseDayList(raw.tomorrow);
   const routine = (Array.isArray(raw.routine) ? raw.routine : []).map((r) => ({
     id: r.id || uid("rt"),
     text: String(r.text || ""),
@@ -55,15 +63,22 @@ function normalise(raw) {
     date: typeof d.date === "string" ? d.date : todayStr(),
     note: String(d.note || "")
   }));
-  // Which day's routine has already been dropped into the plan, so it happens
-  // once a day rather than on every render.
+  // dayStartedOn is the last day the page rolled over for, so the rollover
+  // happens once a day rather than on every render; tomorrowFor is the date the
+  // tomorrow list is written for, so a day that passes unopened is not lost.
+  // autoFilledFor is what dayStartedOn used to be called.
   const meta = raw.meta && typeof raw.meta === "object" ? raw.meta : {};
+  const dayStartedOn = meta.dayStartedOn || meta.autoFilledFor || "";
   return {
     version: 1,
     plan,
+    tomorrow,
     routine,
     deadlines,
-    meta: { autoFilledFor: typeof meta.autoFilledFor === "string" ? meta.autoFilledFor : "" }
+    meta: {
+      dayStartedOn: typeof dayStartedOn === "string" ? dayStartedOn : "",
+      tomorrowFor: typeof meta.tomorrowFor === "string" ? meta.tomorrowFor : ""
+    }
   };
 }
 
@@ -190,7 +205,121 @@ function move(list, index, delta) {
   list.splice(target, 0, item);
 }
 
-// ---------- Today's Plan ----------
+// ---------- Today's Plan, and tomorrow's ----------
+//
+// Both lists hold the same kind of item and behave the same way, so one set of
+// functions renders and edits either of them; the day list is passed in.
+
+function newTask(src) {
+  return {
+    id: uid("task"),
+    text: src.text,
+    time: src.time || "",
+    endTime: src.endTime || "",
+    note: src.note || "",
+    done: false
+  };
+}
+
+// Two items are the same only if their whole slot matches -- the same thing at
+// another time is another thing.
+function sameSlot(a, b) {
+  return a.text.trim().toLowerCase() === b.text.trim().toLowerCase()
+    && (a.time || "") === (b.time || "")
+    && (a.endTime || "") === (b.endTime || "");
+}
+
+function quickAdd(list, placeholder) {
+  const timeInput = el("input", { type: "time", "aria-label": "Start time (optional)" });
+  const endInput = el("input", { type: "time", "aria-label": "End time (optional)" });
+  const textInput = el("input", { type: "text", class: "grow", placeholder, "aria-label": "Task", autocomplete: "off" });
+  const submit = () => {
+    const text = textInput.value.trim();
+    if (!text) { textInput.focus(); return; }
+    list.push(newTask({ text, time: timeInput.value, endTime: endFor(timeInput.value, endInput.value) }));
+    commit();
+  };
+  textInput.addEventListener("keydown", (e) => { if (e.key === "Enter") submit(); });
+
+  const range = el("div", { class: "time-range" });
+  range.appendChild(timeInput);
+  range.appendChild(el("span", { class: "range-sep" }, "→"));
+  range.appendChild(endInput);
+
+  const quick = el("div", { class: "quick-add" });
+  quick.appendChild(range);
+  quick.appendChild(textInput);
+  quick.appendChild(el("button", { class: "btn small", onClick: submit }, "Add"));
+  return quick;
+}
+
+function dayRow(item, i, list, { checkable = true, listName = "the list" } = {}) {
+  const row = el("div", { class: `p-row${item.done ? " done" : ""}` });
+
+  // Tomorrow's items have nothing to tick off yet, so only today's are checkable.
+  if (checkable) {
+    row.appendChild(el("button", {
+      class: `p-check${item.done ? " on" : ""}`,
+      title: item.done ? "Mark as not done" : "Mark as done",
+      "aria-pressed": item.done ? "true" : "false",
+      onClick: () => { item.done = !item.done; commit(); }
+    }, "✓"));
+  }
+
+  row.appendChild(timeCell(item));
+
+  const main = el("div", { class: "p-main" });
+  main.appendChild(el("div", { class: "p-text" }, item.text));
+  if (item.note) main.appendChild(el("div", { class: "p-sub" }, item.note));
+  row.appendChild(main);
+
+  const actions = el("div", { class: "row-actions" });
+  actions.appendChild(miniBtn("↑", "Move up", () => { move(list, i, -1); commit(); }, { disabled: i === 0 }));
+  actions.appendChild(miniBtn("↓", "Move down", () => { move(list, i, 1); commit(); }, { disabled: i === list.length - 1 }));
+  actions.appendChild(miniBtn("✎", "Edit", () => openItemEditor(item, list, listName)));
+  actions.appendChild(miniBtn("✕", "Delete", () => {
+    confirmAction(`Delete "${item.text}" from ${listName}?`, () => {
+      const at = list.indexOf(item);
+      if (at > -1) list.splice(at, 1);
+      commit();
+    });
+  }, { danger: true }));
+  row.appendChild(actions);
+
+  return row;
+}
+
+function openItemEditor(item, list, listName) {
+  const text = el("input", { type: "text", value: item ? item.text : "", placeholder: "e.g. Meet the bank", autocomplete: "off" });
+  const time = el("input", { type: "time", value: item ? item.time : "" });
+  const end = el("input", { type: "time", value: item ? item.endTime : "" });
+  const note = el("input", { type: "text", value: item ? item.note : "", placeholder: "Optional detail", autocomplete: "off" });
+
+  const wrap = el("div", {});
+  wrap.appendChild(field("Task or appointment", text));
+  wrap.appendChild(timeRangeField(time, end));
+  wrap.appendChild(field("Note (optional)", note));
+  wrap.appendChild(el("button", {
+    class: "btn",
+    onClick: () => {
+      const value = text.value.trim();
+      if (!value) { showToast("Give it a name first."); return; }
+      const fields = {
+        text: value,
+        time: time.value || "",
+        endTime: endFor(time.value, end.value),
+        note: note.value.trim()
+      };
+      if (item) Object.assign(item, fields);
+      else list.push(newTask(fields));
+      closeSheet();
+      commit();
+    }
+  }, item ? "Save" : `Add to ${listName}`));
+
+  openSheet(item ? "Edit task" : "New task", wrap);
+  setTimeout(() => text.focus(), 50);
+}
 
 function planCard() {
   const card = el("div", { class: "card" });
@@ -199,10 +328,10 @@ function planCard() {
   const head = el("div", { class: "card-head" });
   head.appendChild(el("h2", {}, "Today's Plan"));
   const headActions = el("div", { class: "head-actions" });
-  headActions.appendChild(miniBtn("＋ Add", "Add a task", () => openPlanEditor(null)));
+  headActions.appendChild(miniBtn("＋ Add", "Add a task", () => openItemEditor(null, data.plan, "today")));
   if (data.plan.length) {
     headActions.appendChild(miniBtn("Clear", "Clear the whole list", () => {
-      confirmAction("Clear every item in today's plan? The routine and deadlines below are not touched.",
+      confirmAction("Clear every item in today's plan? Tomorrow, the routine and deadlines are not touched.",
         () => { data.plan = []; commit(); showToast("Today's plan cleared."); }, "Clear");
     }, { danger: true }));
   }
@@ -215,116 +344,61 @@ function planCard() {
 
   if (data.plan.length) {
     const bar = el("div", { class: "progress-bar", style: "margin-bottom: 6px;" });
-    bar.appendChild(el("div", { class: "fill", style: `width: ${data.plan.length ? (done / data.plan.length) * 100 : 0}%;` }));
+    bar.appendChild(el("div", { class: "fill", style: `width: ${(done / data.plan.length) * 100}%;` }));
     card.appendChild(bar);
   }
 
   if (!data.plan.length) {
     card.appendChild(el("div", { class: "empty-state" }, "Nothing planned yet. Add the first thing below."));
   } else {
-    data.plan.forEach((task, i) => card.appendChild(planRow(task, i)));
+    data.plan.forEach((task, i) => card.appendChild(dayRow(task, i, data.plan, { listName: "today's plan" })));
   }
 
-  // Quick add: the common case is a line of text, so it shouldn't need a sheet.
-  const timeInput = el("input", { type: "time", "aria-label": "Start time (optional)" });
-  const endInput = el("input", { type: "time", "aria-label": "End time (optional)" });
-  const textInput = el("input", { type: "text", class: "grow", placeholder: "Add a task…", "aria-label": "Task", autocomplete: "off" });
-  const submit = () => {
-    const text = textInput.value.trim();
-    if (!text) { textInput.focus(); return; }
-    data.plan.push({
-      id: uid("task"),
-      text,
-      time: timeInput.value || "",
-      endTime: endFor(timeInput.value, endInput.value),
-      note: "",
-      done: false
-    });
-    commit();
-  };
-  textInput.addEventListener("keydown", (e) => { if (e.key === "Enter") submit(); });
-  const quick = el("div", { class: "quick-add" });
-  const range = el("div", { class: "time-range" });
-  range.appendChild(timeInput);
-  range.appendChild(el("span", { class: "range-sep" }, "→"));
-  range.appendChild(endInput);
-  quick.appendChild(range);
-  quick.appendChild(textInput);
-  quick.appendChild(el("button", { class: "btn small", onClick: submit }, "Add"));
-  card.appendChild(quick);
-
+  card.appendChild(quickAdd(data.plan, "Add a task…"));
   return card;
 }
 
-function planRow(task, i) {
-  const row = el("div", { class: `p-row${task.done ? " done" : ""}` });
+// Somewhere to put the things thought of tonight that belong to tomorrow and
+// are not part of the weekly routine. It empties itself into today's plan when
+// tomorrow arrives.
+function tomorrowCard() {
+  const card = el("div", { class: "card" });
+  const dayName = dayLabel(tomorrowDayKey());
 
-  row.appendChild(el("button", {
-    class: `p-check${task.done ? " on" : ""}`,
-    title: task.done ? "Mark as not done" : "Mark as done",
-    "aria-pressed": task.done ? "true" : "false",
-    onClick: () => { task.done = !task.done; commit(); }
-  }, "✓"));
+  const head = el("div", { class: "card-head" });
+  const title = el("h2", {}, "Tomorrow");
+  title.appendChild(el("span", { class: "badge mute", style: "margin-left: 8px;" }, dayName));
+  head.appendChild(title);
+  const headActions = el("div", { class: "head-actions" });
+  headActions.appendChild(miniBtn("＋ Add", "Add something for tomorrow", () => openItemEditor(null, data.tomorrow, "tomorrow")));
+  if (data.tomorrow.length) {
+    headActions.appendChild(miniBtn("Clear", "Clear tomorrow's list", () => {
+      confirmAction("Clear everything set aside for tomorrow?",
+        () => { data.tomorrow = []; commit(); showToast("Tomorrow cleared."); }, "Clear");
+    }, { danger: true }));
+  }
+  head.appendChild(headActions);
+  card.appendChild(head);
+  card.appendChild(el("p", { class: "card-sub" },
+    `Set aside for ${dayName}. It moves into Today's Plan when the day starts.`));
 
-  row.appendChild(timeCell(task));
+  if (!data.tomorrow.length) {
+    card.appendChild(el("div", { class: "empty-state" }, `Nothing set aside for ${dayName} yet.`));
+  } else {
+    data.tomorrow.forEach((task, i) => card.appendChild(dayRow(task, i, data.tomorrow, { checkable: false, listName: "tomorrow" })));
+  }
 
-  const main = el("div", { class: "p-main" });
-  main.appendChild(el("div", { class: "p-text" }, task.text));
-  if (task.note) main.appendChild(el("div", { class: "p-sub" }, task.note));
-  row.appendChild(main);
+  card.appendChild(quickAdd(data.tomorrow, `Add something for ${dayName}…`));
 
-  const actions = el("div", { class: "row-actions" });
-  actions.appendChild(miniBtn("↑", "Move up", () => { move(data.plan, i, -1); commit(); }, { disabled: i === 0 }));
-  actions.appendChild(miniBtn("↓", "Move down", () => { move(data.plan, i, 1); commit(); }, { disabled: i === data.plan.length - 1 }));
-  actions.appendChild(miniBtn("✎", "Edit", () => openPlanEditor(task)));
-  actions.appendChild(miniBtn("✕", "Delete", () => {
-    confirmAction(`Delete "${task.text}" from today's plan?`, () => {
-      data.plan = data.plan.filter((t) => t.id !== task.id);
-      commit();
-    });
-  }, { danger: true }));
-  row.appendChild(actions);
+  // The routine turns up on its own, so it does not need repeating here -- but
+  // it is worth knowing what else the day already holds.
+  const routineCount = data.routine.filter((r) => r.days.includes(tomorrowDayKey())).length;
+  if (routineCount) {
+    card.appendChild(el("p", { class: "card-foot" },
+      `Plus ${routineCount} routine item${routineCount === 1 ? "" : "s"} for ${dayName}, added automatically on the day.`));
+  }
 
-  return row;
-}
-
-function openPlanEditor(task) {
-  const text = el("input", { type: "text", value: task ? task.text : "", placeholder: "e.g. Meet the bank", autocomplete: "off" });
-  const time = el("input", { type: "time", value: task ? task.time : "" });
-  const end = el("input", { type: "time", value: task ? task.endTime : "" });
-  const note = el("input", { type: "text", value: task ? task.note : "", placeholder: "Optional detail", autocomplete: "off" });
-
-  const wrap = el("div", {});
-  wrap.appendChild(field("Task or appointment", text));
-  wrap.appendChild(timeRangeField(time, end));
-  wrap.appendChild(field("Note (optional)", note));
-  wrap.appendChild(el("button", {
-    class: "btn",
-    onClick: () => {
-      const value = text.value.trim();
-      if (!value) { showToast("Give it a name first."); return; }
-      if (task) {
-        task.text = value;
-        task.time = time.value || "";
-        task.endTime = endFor(time.value, end.value);
-        task.note = note.value.trim();
-      } else {
-        data.plan.push({
-          id: uid("task"),
-          text: value,
-          time: time.value || "",
-          endTime: endFor(time.value, end.value),
-          note: note.value.trim(),
-          done: false
-        });
-      }
-      closeSheet();
-      commit();
-    }
-  }, task ? "Save" : "Add to today"));
-
-  openSheet(task ? "Edit task" : "New task", wrap);
-  setTimeout(() => text.focus(), 50);
+  return card;
 }
 
 // ---------- Routine ----------
@@ -466,51 +540,53 @@ function openRoutineEditor(item) {
   setTimeout(() => text.focus(), 50);
 }
 
-// Adds a day's routine to the plan, skipping anything already sitting there --
-// matched on the whole slot, so the same thing at a different time is a
-// different thing. Only ever adds; removing is always the owner's call.
-function addRoutineToPlan(dayKey) {
-  const items = data.routine.filter((r) => r.days.includes(dayKey)).sort(byTime);
-  let added = 0;
-  for (const item of items) {
-    const already = data.plan.some((t) =>
-      t.text.trim().toLowerCase() === item.text.trim().toLowerCase() &&
-      (t.time || "") === (item.time || "") &&
-      (t.endTime || "") === (item.endTime || ""));
-    if (already) continue;
-    data.plan.push({
-      id: uid("task"),
-      text: item.text,
-      time: item.time || "",
-      endTime: item.endTime || "",
-      note: item.note || "",
-      done: false
-    });
-    added++;
-  }
-  return added;
+// The day's routine items that are not already in the given list.
+function routineItemsFor(dayKey, existing) {
+  return data.routine
+    .filter((r) => r.days.includes(dayKey))
+    .sort(byTime)
+    .filter((r) => !existing.some((t) => sameSlot(t, r)))
+    .map(newTask);
 }
 
-// The routine is a standing schedule, so each day's items belong in that day's
-// plan without being asked for. This runs once per day -- the date it last ran
-// for is remembered -- so anything deleted afterwards stays deleted, and a plan
-// cleared later in the day does not refill itself. Nothing is ever removed
-// here: emptying the plan is still only ever done by hand.
-function fillTodaysRoutine() {
+// Rolls the page over to a new day, once per day.
+//
+// Whatever was set aside for tomorrow becomes today's plan, and the day's
+// routine is added on top. Both only ever add: anything deleted stays deleted,
+// and a plan cleared later in the day never refills itself. Emptying a list is
+// only ever done by hand.
+function startDay() {
   const today = todayStr();
-  if (data.meta.autoFilledFor === today) return 0;
-  const added = addRoutineToPlan(todayDayKey());
-  data.meta.autoFilledFor = today;
+  if (data.meta.dayStartedOn === today) {
+    if (!data.meta.tomorrowFor) data.meta.tomorrowFor = addDays(today, 1);
+    return { carried: 0, routine: 0 };
+  }
+
+  // A list written for tomorrow -- or for a day that came and went without the
+  // page being opened -- is what today was meant to look like.
+  let carried = [];
+  if (data.tomorrow.length && data.meta.tomorrowFor && data.meta.tomorrowFor <= today) {
+    carried = data.tomorrow.map(newTask);
+    data.tomorrow = [];
+  }
+
+  const routine = routineItemsFor(todayDayKey(), [...data.plan, ...carried]);
+  data.plan.push(...[...carried, ...routine].sort(byTime));
+  data.meta.dayStartedOn = today;
+  data.meta.tomorrowFor = addDays(today, 1);
   save();
-  return added;
+  return { carried: carried.length, routine: routine.length };
 }
 
 // The button covers the rest: routine items added later in the day, or a plan
 // deliberately re-filled after clearing it.
 function copyTodayIntoPlan() {
-  const added = addRoutineToPlan(todayDayKey());
+  const items = routineItemsFor(todayDayKey(), data.plan);
+  data.plan.push(...items);
   commit();
-  showToast(added ? `Added ${added} routine item${added === 1 ? "" : "s"} to today.` : "Today's routine is already in the plan.");
+  showToast(items.length
+    ? `Added ${items.length} routine item${items.length === 1 ? "" : "s"} to today.`
+    : "Today's routine is already in the plan.");
 }
 
 // ---------- Deadlines ----------
@@ -616,7 +692,7 @@ function openDeadlineEditor(deadline) {
 
 function summary() {
   const done = data.plan.filter((t) => t.done).length;
-  const routineToday = data.routine.filter((r) => r.days.includes(todayDayKey())).length;
+  const routineTomorrow = data.routine.filter((r) => r.days.includes(tomorrowDayKey())).length;
   const next = sortedDeadlines().find((d) => deadlineStatus(d).days >= 0);
   const nextStatus = next ? deadlineStatus(next) : null;
 
@@ -629,11 +705,11 @@ function summary() {
   planStat.appendChild(el("div", { class: "sub" }, data.plan.length ? "done" : "nothing added"));
   grid.appendChild(planStat);
 
-  const routineStat = el("div", { class: "stat" });
-  routineStat.appendChild(el("div", { class: "label" }, "Routine today"));
-  routineStat.appendChild(el("div", { class: "value" }, String(routineToday)));
-  routineStat.appendChild(el("div", { class: "sub" }, dayLabel(todayDayKey())));
-  grid.appendChild(routineStat);
+  const tomorrowStat = el("div", { class: "stat" });
+  tomorrowStat.appendChild(el("div", { class: "label" }, "Tomorrow"));
+  tomorrowStat.appendChild(el("div", { class: "value" }, String(data.tomorrow.length + routineTomorrow)));
+  tomorrowStat.appendChild(el("div", { class: "sub" }, `${dayLabel(tomorrowDayKey())} · ${routineTomorrow} routine`));
+  grid.appendChild(tomorrowStat);
 
   const deadlineStat = el("div", { class: "stat" });
   deadlineStat.appendChild(el("div", { class: "label" }, "Next deadline"));
@@ -653,6 +729,7 @@ function render() {
   view.appendChild(el("p", { class: "page-sub" }, "Your day, your standing routine, and what's coming up. Saved on this device only."));
   view.appendChild(summary());
   view.appendChild(planCard());
+  view.appendChild(tomorrowCard());
   view.appendChild(routineCard());
   view.appendChild(deadlinesCard());
 }
@@ -660,11 +737,12 @@ function render() {
 const todayChip = document.getElementById("today-chip");
 if (todayChip) todayChip.textContent = `${dayLabel(todayDayKey())}, ${fmtDate(todayStr())}`;
 
-const filledIn = fillTodaysRoutine();
+const started = startDay();
 render();
-if (filledIn) {
-  showToast(`Added ${filledIn} ${dayLabel(todayDayKey())} routine item${filledIn === 1 ? "" : "s"} to your plan.`);
-}
+const arrived = [];
+if (started.carried) arrived.push(`${started.carried} item${started.carried === 1 ? "" : "s"} you set aside`);
+if (started.routine) arrived.push(`${started.routine} routine item${started.routine === 1 ? "" : "s"}`);
+if (arrived.length) showToast(`Added ${arrived.join(" and ")} to today's plan.`);
 
 // ---- PWA install + service worker ----
 //
