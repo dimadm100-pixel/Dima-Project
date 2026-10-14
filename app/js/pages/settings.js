@@ -3,6 +3,7 @@ import { fmtDate, fmtMoney, escapeHtml } from "../utils.js";
 import { openSheet, closeSheet, confirmAction, field, numberInput, dateInput, textInput, selectInput, categoryField, showToast } from "../ui.js";
 import { getApiKey, setApiKey, hasApiKey, getModel, setModel, MODELS } from "../ai.js";
 import { addMonths as addMonthKey } from "../utils.js";
+import { openOpeningEditor } from "./cashPosition.js";
 
 function openRecurringEditor(id, onDone) {
   const rec = id ? db.data.recurring.find((r) => r.id === id) : null;
@@ -56,7 +57,11 @@ export function renderSettings(container) {
 
     <div class="card">
       <h2>Opening balance</h2>
-      <p style="color:var(--text-dim); font-size:12px; margin-top:-6px;">The starting point your Cash Position is built from.</p>
+      <p style="color:var(--text-dim); font-size:12px; margin-top:-6px;">The starting point your Cash Position is built from — the sum of what was on each account the day you began.</p>
+      <div class="stat" style="border:none; padding:0; margin-bottom:12px;">
+        <div class="value">${fmtMoney(db.openingBalance())}</div>
+        <div class="sub">as of ${fmtDate(db.data.meta.openingDate)}</div>
+      </div>
       <button class="btn secondary small" id="edit-opening">Edit opening balance</button>
     </div>
 
@@ -152,23 +157,10 @@ export function renderSettings(container) {
     renderSettings(container);
   });
 
+  // Same editor the opening row in Cash Position opens, so there is one place
+  // the starting figure is set and no way for the two screens to disagree.
   container.querySelector("#edit-opening").addEventListener("click", () => {
-    const form = document.createElement("div");
-    const amtInput = numberInput({ value: db.data.meta.openingBalance });
-    const dateEl = dateInput({ value: db.data.meta.openingDate });
-    form.appendChild(field("Opening balance (UZS)", amtInput));
-    form.appendChild(field("Opening date", dateEl));
-    const btn = document.createElement("button");
-    btn.className = "btn";
-    btn.textContent = "Save";
-    btn.addEventListener("click", () => {
-      db.setOpeningBalance(parseFloat(amtInput.value) || 0, dateEl.value);
-      closeSheet();
-      showToast("Opening balance updated");
-      renderSettings(container);
-    });
-    form.appendChild(btn);
-    openSheet("Opening balance", form);
+    openOpeningEditor(() => renderSettings(container));
   });
 
   container.querySelector("#export-btn").addEventListener("click", () => {

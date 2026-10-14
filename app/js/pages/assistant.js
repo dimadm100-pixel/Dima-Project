@@ -284,7 +284,9 @@ async function send(container) {
   } finally {
     busy = false;
     status.remove();
-    renderAssistant(container);
+    // A reply can land long after the user has left this page. Repainting
+    // then would draw the assistant over whatever they are now looking at.
+    if (container.isConnected && container.dataset.page === "assistant") renderAssistant(container);
   }
 }
 

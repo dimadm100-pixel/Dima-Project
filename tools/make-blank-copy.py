@@ -6,7 +6,13 @@ The copy is a full duplicate of app/ with three things changed:
   1. seed.js  -- emptied, so none of the original owner's figures ship with it
   2. config.js-- a different APP_ID, so the two copies cannot read or overwrite
                  each other's browser storage when served from the same origin
-  3. branding -- generic name in the manifest, page title and header
+  3. branding -- generic name in the manifests, page titles and header
+
+Everything else is copied verbatim, so the copy has every feature the original
+has, including the Personal page. All money figures in the seed are zero; the
+non-money reference values (the USD rate, the home-option percentages) keep
+working defaults, because a rate of zero would make every goal read 0% until
+the setting was found.
 
 Re-run this after changing app/ to bring the copy back in sync:
 
@@ -23,7 +29,8 @@ DEST = ROOT / "brother"
 
 APP_ID = "brother"
 APP_NAME = "Finance Tracker"
-CACHE_NAME = "blank-finance-v1"
+PERSONAL_NAME = "Personal"
+CACHE_NAME = "blank-finance-v2"
 
 BLANK_SEED = '''// Blank starting data.
 //
@@ -145,6 +152,16 @@ def main() -> None:
 
     settings = DEST / "js" / "pages" / "settings.js"
     replace_once(settings, "Dilmurod Finance Tracker · installed as a PWA", f"{APP_NAME} · installed as a PWA")
+
+    # The Personal page (today's plan, weekly routine, deadlines) ships with
+    # the copy too. Its storage key is APP_ID-namespaced like everything else,
+    # so the two installs keep separate plans.
+    personal = DEST / "personal.html"
+    replace_once(personal, "<title>Dilmurod Personal</title>", f"<title>{PERSONAL_NAME}</title>")
+    replace_once(personal, 'content="Dilmurod Personal"', f'content="{PERSONAL_NAME}"')
+
+    personal_manifest = DEST / "personal.webmanifest"
+    replace_once(personal_manifest, '"name": "Dilmurod Personal"', f'"name": "{PERSONAL_NAME}"')
 
     files = sum(1 for _ in DEST.rglob("*") if _.is_file())
     print(f"Wrote {DEST.relative_to(ROOT)}/ ({files} files) with a blank seed and APP_ID={APP_ID!r}")

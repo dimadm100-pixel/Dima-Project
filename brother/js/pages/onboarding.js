@@ -58,8 +58,10 @@ export function renderOnboarding(container, onDone) {
     const balance = parseFloat(container.querySelector("#acc-balance").value) || 0;
     const startDate = container.querySelector("#start-date").value || todayStr();
 
+    // The account holds the starting figure; the opening total is derived
+    // from the accounts, so there is nothing to set twice.
     db.addAccount({ name, number: "", openingBalance: balance });
-    db.setOpeningBalance(balance, startDate);
+    db.setOpeningDate(startDate);
 
     showToast("All set");
     onDone();

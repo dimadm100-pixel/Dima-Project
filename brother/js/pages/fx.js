@@ -9,6 +9,13 @@ import { showToast } from "../ui.js";
 let range = 90;
 let loading = false;
 
+// True while the Exchange Rates page is the one actually on screen. The CBU
+// fetch can take seconds, and without this check its callback would redraw
+// the rates over whichever page the user had navigated to in the meantime.
+function stillShowing(container) {
+  return container.isConnected && container.dataset.page === "fx";
+}
+
 export function renderFx(container) {
   const f = fxState();
   const hasRates = Object.keys(f.rates || {}).length > 0;
@@ -107,7 +114,9 @@ export function renderFx(container) {
     try {
       const res = await backfillHistory({
         days: range,
-        onProgress: (done, total) => { status.textContent = `Fetched ${done} of ${total} dates…`; }
+        onProgress: (done, total) => {
+          if (status.isConnected) status.textContent = `Fetched ${done} of ${total} dates…`;
+        }
       });
       status.textContent = res.failed
         ? `Loaded, but ${res.failed} of ${res.requested} dates couldn't be fetched.`
@@ -116,7 +125,7 @@ export function renderFx(container) {
       status.textContent = "Couldn't load history.";
     } finally {
       loading = false;
-      renderFx(container);
+      if (stillShowing(container)) renderFx(container);
     }
   });
 
@@ -129,6 +138,7 @@ async function doRefresh(container, { silent = false } = {}) {
   loading = true;
   const res = await refreshRates({ force: true });
   loading = false;
+  if (!stillShowing(container)) return;
   if (!silent) showToast(res.ok ? "Rates updated" : "Couldn't reach cbu.uz");
   renderFx(container);
 }

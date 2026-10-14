@@ -31,6 +31,22 @@ function migrate(data) {
     delete a.balance;
   }
 
+  // The starting total is now derived from the accounts' own opening balances
+  // rather than stored separately (see Store#openingBalance). If an older
+  // install had let the two drift apart, deriving it would silently move the
+  // balance, so absorb the difference into one account once. After this the
+  // two are the same number by construction and can never disagree again.
+  const accs = data.accounts || [];
+  if (accs.length && data.meta && data.meta.openingBalance !== undefined) {
+    const stored = Number(data.meta.openingBalance) || 0;
+    const summed = accs.reduce((s, a) => s + (Number(a.openingBalance) || 0), 0);
+    if (Math.round(stored - summed) !== 0) {
+      const target = accs.find((a) => /cash/i.test(a.name)) || accs[0];
+      target.openingBalance = (Number(target.openingBalance) || 0) + (stored - summed);
+      migrate.repaired = true;
+    }
+  }
+
   // Rows carried in from the original spreadsheet had no ids, so the UI had
   // nothing to address them by: Edit fell through to "add new" and Delete
   // matched nothing. Give every row a stable id.
@@ -61,6 +77,12 @@ class Store {
   }
 
   save() {
+    // Keep meta.openingBalance as a faithful mirror of the accounts' own
+    // starting amounts. It is never the source of truth while accounts exist
+    // (see openingBalance()), but exports and older backups read it directly.
+    if (this.data.accounts && this.data.accounts.length) {
+      this.data.meta.openingBalance = this.openingBalance();
+    }
     localStorage.setItem(STORAGE_KEY, JSON.stringify(this.data));
     this._listeners.forEach((fn) => fn());
   }
@@ -316,8 +338,51 @@ class Store {
   }
 
   // ---------- Meta ----------
-  setOpeningBalance(amount, date) {
-    this.data.meta.openingBalance = Number(amount);
+
+  // Starting cash, as one number.
+  //
+  // It used to be stored twice -- once in meta, once spread across the
+  // accounts' own opening balances -- so correcting your starting figure in
+  // one screen left the other stale and the app then reported the ledger as
+  // unbalanced for no real reason. The accounts are now the single source of
+  // truth and this total is derived from them, so the two can never drift.
+  // meta.openingBalance is still honoured for data that predates accounts.
+  openingBalance() {
+    if (this.data.accounts && this.data.accounts.length) {
+      return this.data.accounts.reduce((s, a) => s + (Number(a.openingBalance) || 0), 0);
+    }
+    return Number(this.data.meta.openingBalance) || 0;
+  }
+
+  setOpeningDate(date) {
+    if (!date) return;
+    this.data.meta.openingDate = date;
+    this.save();
+  }
+
+  // Set the starting amount on several accounts at once, which is how the
+  // opening row is edited. Entries are { id, openingBalance }.
+  setAccountOpeningBalances(entries, date) {
+    for (const { id, openingBalance } of entries) {
+      const a = this.data.accounts.find((x) => x.id === id);
+      if (a) a.openingBalance = Number(openingBalance) || 0;
+    }
+    if (date) this.data.meta.openingDate = date;
+    this.save();
+  }
+
+  // Kept for imports and for an install that has no accounts yet. With
+  // accounts present the total is derived, so the change is applied to the
+  // account the user nominates, falling back to the first one.
+  setOpeningBalance(amount, date, accountId) {
+    const next = Number(amount) || 0;
+    const accounts = this.data.accounts || [];
+    if (accounts.length) {
+      const target = accounts.find((a) => a.id === accountId) || accounts[0];
+      const others = accounts.reduce((s, a) => (a === target ? s : s + (Number(a.openingBalance) || 0)), 0);
+      target.openingBalance = next - others;
+    }
+    this.data.meta.openingBalance = next;
     if (date) this.data.meta.openingDate = date;
     this.save();
   }
@@ -492,7 +557,7 @@ class Store {
 
   // Running actual cash balance as of a given date (inclusive), starting from openingBalance.
   actualBalanceAsOf(dateStr) {
-    const opening = this.data.meta.openingBalance;
+    const opening = this.openingBalance();
     const sum = this.data.actuals
       .filter((t) => t.date <= dateStr)
       .reduce((s, t) => s + t.amount, 0);
@@ -506,7 +571,7 @@ class Store {
 
   // Full running ledger for the Cash Position page: opening balance row + each actual, with running total.
   cashPositionLedger() {
-    const opening = this.data.meta.openingBalance;
+    const opening = this.openingBalance();
     let running = opening;
     const rows = [
       { date: this.data.meta.openingDate, type: "opening", label: "Opening balance", amount: null, balance: opening }
@@ -590,7 +655,7 @@ class Store {
   // Projected balance trajectory combining actuals up to today, budget after.
   projectedTrajectory(toDate) {
     const points = [];
-    let running = this.data.meta.openingBalance;
+    let running = this.openingBalance();
     const today = todayStr();
     const start = this.data.meta.openingDate;
     const actualsByDate = groupSum(this.data.actuals, today);
@@ -614,7 +679,7 @@ class Store {
     const lastBudgetDate = this.data.budget.reduce((max, b) => (b.date > max ? b.date : max), start);
     const budgetByDate = groupSum(this.data.budget, null);
     const points = [];
-    let running = this.data.meta.openingBalance;
+    let running = this.openingBalance();
     let ds = start;
     let guard = 0;
     while (ds <= lastBudgetDate && guard < 5000) {
@@ -633,7 +698,7 @@ class Store {
     const end = today > start ? today : start;
     const actualsByDate = groupSum(this.data.actuals, null);
     const points = [];
-    let running = this.data.meta.openingBalance;
+    let running = this.openingBalance();
     let ds = start;
     let guard = 0;
     while (ds <= end && guard < 5000) {

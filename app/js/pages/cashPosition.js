@@ -70,6 +70,9 @@ export function renderCashPosition(container) {
   const fixBtn = container.querySelector("#fix-unassigned");
   if (fixBtn) fixBtn.addEventListener("click", () => openBulkAssign(rerender));
 
+  const openingBtn = container.querySelector("#edit-opening-row");
+  if (openingBtn) openingBtn.addEventListener("click", () => openOpeningEditor(rerender));
+
   container.querySelectorAll("[data-edit-tx]").forEach((btn) => {
     btn.addEventListener("click", () => openTxEditor(btn.dataset.editTx, rerender));
   });
@@ -111,8 +114,11 @@ function buildLedgerRows() {
 function rowHTML(row) {
   if (row.type === "opening") {
     return `<tr>
-      <td colspan="2" style="color:var(--text-dim);">Opening balance, ${fmtDate(row.date)}</td>
+      <td style="color:var(--text-dim);">Opening balance<br><span style="font-size:11px;">${fmtDate(row.date)}</span></td>
       <td class="num" style="font-weight:700;">${fmtMoney(row.balance)}</td>
+      <td class="row-actions" style="justify-content:flex-end;">
+        <button class="mini-btn" id="edit-opening-row">Edit</button>
+      </td>
     </tr>`;
   }
   if (row.type === "transfer") {
@@ -311,4 +317,74 @@ function openTxEditor(id, onDone) {
 
 export function openAddTransaction(onDone) {
   openTransactionModal({ onSaved: onDone });
+}
+
+// Editing where you started from.
+//
+// The opening total is the sum of the accounts' own starting amounts, so this
+// edits them directly and the total follows. That is the whole point: there is
+// no second copy of the figure left behind to make the ledger look unbalanced.
+export function openOpeningEditor(onDone) {
+  const accounts = db.data.accounts;
+  const form = document.createElement("div");
+
+  if (!accounts.length) {
+    const amt = numberInput({ value: db.openingBalance() });
+    const dateEl = dateInput({ value: db.data.meta.openingDate });
+    form.appendChild(field("Starting cash (UZS)", amt));
+    form.appendChild(field("Tracking starts", dateEl));
+    const save = document.createElement("button");
+    save.className = "btn";
+    save.textContent = "Save";
+    save.addEventListener("click", () => {
+      db.setOpeningBalance(parseFloat(amt.value) || 0, dateEl.value);
+      closeSheet();
+      onDone();
+      showToast("Opening balance updated");
+    });
+    form.appendChild(save);
+    openSheet("Opening balance", form);
+    return;
+  }
+
+  const intro = document.createElement("p");
+  intro.style.cssText = "color:var(--text-dim); font-size:12px; margin:0 0 14px;";
+  intro.textContent = "How much was on each account on the day you started. Change any of these and the opening total updates with them.";
+  form.appendChild(intro);
+
+  const dateEl = dateInput({ value: db.data.meta.openingDate });
+  form.appendChild(field("Tracking starts", dateEl));
+
+  const totalLine = document.createElement("p");
+  totalLine.style.cssText = "font-size:13px; font-weight:700; margin:4px 0 16px;";
+
+  const inputs = accounts.map((a) => {
+    const input = numberInput({ value: a.openingBalance ?? 0 });
+    input.addEventListener("input", updateTotal);
+    form.appendChild(field(a.name + (a.number ? ` ·· ${a.number}` : ""), input));
+    return { id: a.id, input };
+  });
+
+  function updateTotal() {
+    const sum = inputs.reduce((s, i) => s + (parseFloat(i.input.value) || 0), 0);
+    totalLine.textContent = `Opening total: ${fmtMoney(sum)}`;
+  }
+  updateTotal();
+  form.appendChild(totalLine);
+
+  const save = document.createElement("button");
+  save.className = "btn";
+  save.textContent = "Save";
+  save.addEventListener("click", () => {
+    db.setAccountOpeningBalances(
+      inputs.map((i) => ({ id: i.id, openingBalance: parseFloat(i.input.value) || 0 })),
+      dateEl.value
+    );
+    closeSheet();
+    onDone();
+    showToast("Opening balances updated");
+  });
+  form.appendChild(save);
+
+  openSheet("Opening balance", form);
 }
