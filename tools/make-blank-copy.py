@@ -31,7 +31,7 @@ APP_ID = "brother"
 APP_NAME = "Finance Tracker"
 PERSONAL_NAME = "Personal"
 CACHE_PREFIX = "blank-finance-"
-CACHE_VERSION = "v7"
+CACHE_VERSION = "v8"
 
 BLANK_SEED = '''// Blank starting data.
 //
@@ -142,7 +142,7 @@ def main() -> None:
     # the other's caches when it activated.
     sw = DEST / "sw.js"
     replace_once(sw, 'const CACHE_PREFIX = "dilmurod-finance-";', f'const CACHE_PREFIX = "{CACHE_PREFIX}";')
-    replace_once(sw, 'const CACHE_NAME = CACHE_PREFIX + "v23";', f'const CACHE_NAME = CACHE_PREFIX + "{CACHE_VERSION}";')
+    replace_once(sw, 'const CACHE_NAME = CACHE_PREFIX + "v24";', f'const CACHE_NAME = CACHE_PREFIX + "{CACHE_VERSION}";')
 
     manifest = DEST / "manifest.json"
     replace_once(manifest, '"name": "Dilmurod Finance Tracker"', f'"name": "{APP_NAME}"')
