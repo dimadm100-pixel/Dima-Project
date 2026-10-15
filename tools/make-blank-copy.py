@@ -30,7 +30,8 @@ DEST = ROOT / "brother"
 APP_ID = "brother"
 APP_NAME = "Finance Tracker"
 PERSONAL_NAME = "Personal"
-CACHE_NAME = "blank-finance-v2"
+CACHE_PREFIX = "blank-finance-"
+CACHE_VERSION = "v7"
 
 BLANK_SEED = '''// Blank starting data.
 //
@@ -136,10 +137,12 @@ def main() -> None:
     (DEST / "js" / "seed.js").write_text(BLANK_SEED)
     (DEST / "js" / "config.js").write_text(BLANK_CONFIG)
 
-    # Its own service worker cache, or the two copies would evict each other.
+    # Its own service worker cache namespace. Cache Storage is shared across
+    # an origin, so without a distinct prefix each copy's worker would delete
+    # the other's caches when it activated.
     sw = DEST / "sw.js"
-    line = sw.read_text().splitlines()[0]
-    replace_once(sw, line, f'const CACHE_NAME = "{CACHE_NAME}";')
+    replace_once(sw, 'const CACHE_PREFIX = "dilmurod-finance-";', f'const CACHE_PREFIX = "{CACHE_PREFIX}";')
+    replace_once(sw, 'const CACHE_NAME = CACHE_PREFIX + "v23";', f'const CACHE_NAME = CACHE_PREFIX + "{CACHE_VERSION}";')
 
     manifest = DEST / "manifest.json"
     replace_once(manifest, '"name": "Dilmurod Finance Tracker"', f'"name": "{APP_NAME}"')
