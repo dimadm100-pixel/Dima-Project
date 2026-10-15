@@ -750,8 +750,31 @@ if (arrived.length) showToast(`Added ${arrived.join(" and ")} to today's plan.`)
 // site), but declares its own manifest, so it installs to the home screen as
 // its own app with its own icon rather than as a shortcut into the tracker.
 if ("serviceWorker" in navigator) {
-  window.addEventListener("load", () => {
-    navigator.serviceWorker.register("./sw.js").catch(() => {});
+  // Whether this page is already under a service worker's control. On a very
+  // first visit it is not, and there is nothing stale to replace.
+  const hadController = !!navigator.serviceWorker.controller;
+  let reloadedForUpdate = false;
+
+  window.addEventListener("load", async () => {
+    try {
+      const reg = await navigator.serviceWorker.register("./sw.js");
+      // An installed app is usually resumed rather than opened fresh, and a
+      // resume does not always check for a new version on its own. Ask.
+      document.addEventListener("visibilitychange", () => {
+        if (document.visibilityState === "visible") reg.update().catch(() => {});
+      });
+    } catch (e) { /* offline, or service workers unavailable */ }
+  });
+
+  // A newly installed worker claims its pages as soon as it activates. This
+  // page was built from the old version's files, so reload once to pick up
+  // the new ones -- without this, an update stays invisible until the app
+  // happens to be opened a second time, which looks exactly like the update
+  // never arrived. Guarded so repeated claims cannot cause a reload loop.
+  navigator.serviceWorker.addEventListener("controllerchange", () => {
+    if (!hadController || reloadedForUpdate) return;
+    reloadedForUpdate = true;
+    window.location.reload();
   });
 }
 
