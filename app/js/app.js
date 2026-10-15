@@ -83,6 +83,7 @@ function currentRoute() {
 function render() {
   if (needsOnboarding()) {
     view.innerHTML = "";
+    view.dataset.page = "onboarding";
     renderOnboarding(view, render);
     document.querySelectorAll("[data-nav]").forEach((a) => a.classList.remove("active"));
     return;
@@ -90,6 +91,11 @@ function render() {
   const { key, sub } = currentRoute();
   const route = ROUTES.find((r) => r.key === key) || ROUTES.find((r) => r.key === "dashboard");
   view.innerHTML = "";
+  // Every page draws into this one element. A page that finishes a network
+  // request after you have already navigated away must not repaint over
+  // whatever you are now looking at, so record who owns the view and let
+  // those late callbacks check it first.
+  view.dataset.page = route.key;
   route.render(view, sub);
   document.querySelectorAll("[data-nav]").forEach((a) => {
     a.classList.toggle("active", a.dataset.nav === route.key);

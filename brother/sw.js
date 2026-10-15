@@ -1,10 +1,14 @@
-const CACHE_NAME = "blank-finance-v1";
+const CACHE_NAME = "blank-finance-v2";
 const ASSETS = [
   "./",
   "./index.html",
+  "./personal.html",
   "./manifest.json",
+  "./personal.webmanifest",
   "./css/style.css",
+  "./css/personal.css",
   "./js/app.js",
+  "./js/personal.js",
   "./js/db.js",
   "./js/seed.js",
   "./js/utils.js",
@@ -31,6 +35,9 @@ const ASSETS = [
   "./js/pages/settings.js",
   "./js/pages/transactionForm.js",
   "./icons/icon-192.png",
+  "./icons/personal-192.png",
+  "./icons/personal-512.png",
+  "./icons/personal-maskable-512.png",
   "./icons/icon-512.png",
   "./icons/icon-maskable-512.png"
 ];

@@ -255,7 +255,7 @@ export function buildAIContext() {
     today,
     currency: db.data.meta.currency || "UZS",
     currentBalance: db.currentBalance(),
-    openingBalance: db.data.meta.openingBalance,
+    openingBalance: db.openingBalance(),
     openingDate: db.data.meta.openingDate,
     monthlyHistory: monthly,
     thisMonthBudgetVsActual: cmp.rows,

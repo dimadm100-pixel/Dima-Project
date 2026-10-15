@@ -1,4 +1,4 @@
-const CACHE_NAME = "dilmurod-finance-v17";
+const CACHE_NAME = "dilmurod-finance-v18";
 const ASSETS = [
   "./",
   "./index.html",
