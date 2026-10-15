@@ -15,6 +15,7 @@ import { renderTargets } from "./pages/targets.js";
 import { renderSpecifications } from "./pages/specifications.js";
 import { renderCreditRating } from "./pages/creditRating.js";
 import { renderSettings } from "./pages/settings.js";
+import { renderHelp } from "./pages/help.js";
 import { openTransactionModal } from "./pages/transactionForm.js";
 import { openSpecEditor } from "./pages/specifications.js";
 import { needsOnboarding, renderOnboarding } from "./pages/onboarding.js";
@@ -38,7 +39,8 @@ const ROUTES = [
   { key: "targets", label: "Targets", icon: "🏁", render: renderTargets },
   { key: "specifications", label: "Specs", icon: "🧾", render: renderSpecifications },
   { key: "creditrating", label: "Credit", icon: "💳", render: renderCreditRating },
-  { key: "settings", label: "Settings", icon: "⚙️", render: renderSettings }
+  { key: "settings", label: "Settings", icon: "⚙️", render: renderSettings },
+  { key: "help", label: "Guide", icon: "❓", render: renderHelp }
 ];
 
 const view = document.getElementById("view");
