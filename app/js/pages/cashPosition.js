@@ -1,4 +1,5 @@
 import { db } from "../db.js";
+import { t as T } from "../i18n.js";
 import { fmtMoney, fmtDate, escapeHtml, el } from "../utils.js";
 import { openSheet, closeSheet, confirmAction, field, numberInput, dateInput, textInput, selectInput, categoryField, showToast } from "../ui.js";
 import { openTransactionModal } from "./transactionForm.js";
@@ -12,50 +13,49 @@ export function renderCashPosition(container) {
   const ledger = buildLedgerRows().reverse(); // newest first
 
   container.innerHTML = `
-    <div class="page-title">Cash Position</div>
-    <p class="page-sub">Your real ledger, and where the money physically sits.</p>
+    <div class="page-title">${T("position.title")}</div>
+    <p class="page-sub">${T("position.sub")}</p>
 
     <div class="card hero-balance">
-      <div class="label">Balance as of today</div>
+      <div class="label">${T("position.balanceToday")}</div>
       <div class="amount" style="color:${currentBalance < 0 ? "var(--danger)" : "var(--text)"};">${fmtMoney(currentBalance)}</div>
     </div>
 
     ${unassigned.length ? `
     <div class="card" style="border-color:var(--warn);">
-      <h2>⚠️ Ledger doesn't balance</h2>
+      <h2>⚠️ ${T("position.unbalancedTitle")}</h2>
       <p style="font-size:13px; color:var(--text-dim); margin-top:-6px;">
-        ${unassigned.length} transaction${unassigned.length === 1 ? " isn't" : "s aren't"} assigned to an account, worth ${fmtMoney(unassignedTotal)}.
-        Until they're assigned, your accounts add up to ${fmtMoney(accountsTotal)} instead of ${fmtMoney(currentBalance)}.
+        ${T("position.unbalancedBody", { n: unassigned.length, worth: fmtMoney(unassignedTotal), accounts: fmtMoney(accountsTotal), ledger: fmtMoney(currentBalance) })}
       </p>
-      <button class="btn secondary small" id="fix-unassigned">Assign them now</button>
+      <button class="btn secondary small" id="fix-unassigned">${T("position.assignNow")}</button>
     </div>` : ""}
 
     <div class="card">
-      <h2>Accounts</h2>
+      <h2>${T("position.accounts")}</h2>
       <table>
         <tbody>
           ${accounts.map((a) => `
             <tr>
               <td>${escapeHtml(a.name)}${a.number ? `<br><span style="color:var(--text-dim); font-size:11px;">•• ${escapeHtml(a.number)}</span>` : ""}</td>
               <td class="num ${a.balance < 0 ? "amt-neg" : ""}" style="font-weight:600;">${fmtMoney(a.balance)}</td>
-              <td class="row-actions" style="justify-content:flex-end;"><button class="mini-btn" data-edit-account="${a.id}">Edit</button></td>
+              <td class="row-actions" style="justify-content:flex-end;"><button class="mini-btn" data-edit-account="${a.id}">${T("common.edit")}</button></td>
             </tr>`).join("")}
           <tr>
-            <td style="font-weight:700;">Total</td>
+            <td style="font-weight:700;">${T("common.total")}</td>
             <td class="num" style="font-weight:700;">${fmtMoney(accountsTotal)}</td>
             <td></td>
           </tr>
         </tbody>
       </table>
       ${unassigned.length === 0
-        ? `<p style="color:var(--accent); font-size:12px; margin-top:10px;">✓ Balanced — accounts match the ledger exactly.</p>`
-        : `<p style="color:var(--warn); font-size:12px; margin-top:10px;">Off by ${fmtMoney(currentBalance - accountsTotal)} — see above.</p>`}
-      <button class="btn secondary small" id="add-account-btn" style="margin-top:10px;">+ Add account</button>
+        ? `<p style="color:var(--accent); font-size:12px; margin-top:10px;">✓ ${T("position.balanced")}</p>`
+        : `<p style="color:var(--warn); font-size:12px; margin-top:10px;">${T("position.offBy", { amount: fmtMoney(currentBalance - accountsTotal) })}</p>`}
+      <button class="btn secondary small" id="add-account-btn" style="margin-top:10px;">${T("position.addAccount")}</button>
     </div>
 
     <div class="card">
-      <h2>Ledger</h2>
-      ${ledger.length <= 1 ? `<div class="empty-state">No transactions yet. Tap + to log your first one.</div>` : ""}
+      <h2>${T("position.ledger")}</h2>
+      ${ledger.length <= 1 ? `<div class="empty-state">${T("position.noTransactions")}</div>` : ""}
       <table><tbody>${ledger.map(rowHTML).join("")}</tbody></table>
     </div>
   `;
@@ -77,17 +77,17 @@ export function renderCashPosition(container) {
     btn.addEventListener("click", () => openTxEditor(btn.dataset.editTx, rerender));
   });
   container.querySelectorAll("[data-delete-tx]").forEach((btn) => {
-    btn.addEventListener("click", () => confirmAction("Delete this transaction?", () => {
+    btn.addEventListener("click", () => confirmAction(T("position.confirmDeleteTx"), () => {
       db.deleteActual(btn.dataset.deleteTx);
       rerender();
-      showToast("Transaction deleted");
+      showToast(T("position.txDeleted"));
     }));
   });
   container.querySelectorAll("[data-delete-trf]").forEach((btn) => {
-    btn.addEventListener("click", () => confirmAction("Delete this transfer?", () => {
+    btn.addEventListener("click", () => confirmAction(T("position.confirmDeleteTransfer"), () => {
       db.deleteTransfer(btn.dataset.deleteTrf);
       rerender();
-      showToast("Transfer deleted");
+      showToast(T("position.transferDeleted"));
     }));
   });
 }
@@ -114,10 +114,10 @@ function buildLedgerRows() {
 function rowHTML(row) {
   if (row.type === "opening") {
     return `<tr>
-      <td style="color:var(--text-dim);">Opening balance<br><span style="font-size:11px;">${fmtDate(row.date)}</span></td>
+      <td style="color:var(--text-dim);">${T("position.openingBalance")}<br><span style="font-size:11px;">${fmtDate(row.date)}</span></td>
       <td class="num" style="font-weight:700;">${fmtMoney(row.balance)}</td>
       <td class="row-actions" style="justify-content:flex-end;">
-        <button class="mini-btn" id="edit-opening-row">Edit</button>
+        <button class="mini-btn" id="edit-opening-row">${T("common.edit")}</button>
       </td>
     </tr>`;
   }
@@ -126,18 +126,18 @@ function rowHTML(row) {
       <td>${fmtDate(row.date)}<br><span style="color:var(--accent-2); font-size:11px;">⇄ ${escapeHtml(row.label)}${row.note ? " · " + escapeHtml(row.note) : ""}</span></td>
       <td class="num" style="color:var(--accent-2);">${fmtMoney(row.amount)}</td>
       <td class="row-actions" style="justify-content:flex-end;">
-        <button class="mini-btn danger" data-delete-trf="${row.id}">Del</button>
+        <button class="mini-btn danger" data-delete-trf="${row.id}">${T("common.del")}</button>
       </td>
     </tr>`;
   }
   const account = row.accountId ? db.accountName(row.accountId) : null;
   return `<tr>
     <td>${fmtDate(row.date)}<br><span style="color:var(--text-dim); font-size:11px;">${escapeHtml(row.label)}${row.note ? " · " + escapeHtml(row.note) : ""}</span>
-      <br><span style="font-size:10px; color:${account ? "var(--text-dim)" : "var(--warn)"};">${account ? escapeHtml(account) : "unassigned"}</span></td>
+      <br><span style="font-size:10px; color:${account ? "var(--text-dim)" : "var(--warn)"};">${account ? escapeHtml(account) : T("position.unassigned")}</span></td>
     <td class="num ${row.amount >= 0 ? "amt-pos" : "amt-neg"}">${fmtMoney(row.amount)}<br><span style="color:var(--text-dim); font-size:11px; font-weight:400;">${fmtMoney(row.balance)}</span></td>
     <td class="row-actions" style="justify-content:flex-end;">
-      <button class="mini-btn" data-edit-tx="${row.id}">Edit</button>
-      <button class="mini-btn danger" data-delete-tx="${row.id}">Del</button>
+      <button class="mini-btn" data-edit-tx="${row.id}">${T("common.edit")}</button>
+      <button class="mini-btn danger" data-delete-tx="${row.id}">${T("common.del")}</button>
     </td>
   </tr>`;
 }
@@ -150,15 +150,15 @@ function openBulkAssign(onDone) {
   const wrap = el("div");
 
   wrap.appendChild(el("p", { style: "font-size:13px; color:var(--text-dim); margin-bottom:14px;" },
-    `${unassigned.length} transaction${unassigned.length === 1 ? "" : "s"} need an account.`));
+    T("position.needAccountCount", { n: unassigned.length })));
 
   const bulkRow = el("div", { style: "display:flex; gap:8px; align-items:flex-end; margin-bottom:16px;" });
   const bulkSelect = selectInput(options, {});
-  const bulkField = field("Set all to", bulkSelect);
+  const bulkField = field(T("position.setAllTo"), bulkSelect);
   bulkField.style.flex = "1";
   bulkField.style.marginBottom = "0";
   bulkRow.appendChild(bulkField);
-  const applyAll = el("button", { class: "btn small secondary" }, "Apply to all");
+  const applyAll = el("button", { class: "btn small secondary" }, T("position.applyToAll"));
   bulkRow.appendChild(applyAll);
   wrap.appendChild(bulkRow);
 
@@ -181,21 +181,21 @@ function openBulkAssign(onDone) {
 
   applyAll.addEventListener("click", () => {
     for (const sel of selects.values()) sel.value = bulkSelect.value;
-    showToast("Set — now save");
+    showToast(T("position.setNowSave"));
   });
 
-  const save = el("button", { class: "btn", style: "margin-top:14px;" }, "Save assignments");
+  const save = el("button", { class: "btn", style: "margin-top:14px;" }, T("position.saveAssignments"));
   save.addEventListener("click", () => {
     for (const [txId, sel] of selects.entries()) {
       if (sel.value) db.updateActual(txId, { accountId: sel.value });
     }
     closeSheet();
-    showToast("Ledger balanced");
+    showToast(T("position.ledgerBalanced"));
     onDone();
   });
   wrap.appendChild(save);
 
-  openSheet("Assign accounts", wrap);
+  openSheet(T("position.assignAccounts"), wrap);
 }
 
 function openAccountEditor(id, onDone) {
@@ -205,18 +205,18 @@ function openAccountEditor(id, onDone) {
   const numberInputEl = textInput({ value: acc?.number || "" });
   const openingInput = numberInput({ value: acc?.openingBalance ?? 0 });
 
-  form.appendChild(field("Name", nameInput));
-  form.appendChild(field("Card / account number (optional)", numberInputEl));
-  form.appendChild(field("Starting balance (UZS)", openingInput));
+  form.appendChild(field(T("common.name"), nameInput));
+  form.appendChild(field(T("position.cardNumber"), numberInputEl));
+  form.appendChild(field(T("position.startingBalance"), openingInput));
 
   if (acc) {
     form.appendChild(el("p", { style: "font-size:11px; color:var(--text-dim); margin:-4px 0 14px;" },
       `Current balance is ${fmtMoney(db.accountBalance(acc.id))} — that's this starting figure plus everything assigned to it. Change the starting figure only if it was wrong to begin with.`));
   }
 
-  const saveBtn = el("button", { class: "btn" }, "Save");
+  const saveBtn = el("button", { class: "btn" }, T("common.save"));
   saveBtn.addEventListener("click", () => {
-    if (!nameInput.value.trim()) { showToast("Enter a name"); return; }
+    if (!nameInput.value.trim()) { showToast(T("common.needName")); return; }
     const payload = {
       name: nameInput.value.trim(),
       number: numberInputEl.value.trim(),
@@ -231,46 +231,46 @@ function openAccountEditor(id, onDone) {
 
   if (acc) {
     const usage = db.accountUsage(acc.id);
-    const delBtn = el("button", { class: "btn danger", style: "margin-top:10px;" }, "Delete account");
+    const delBtn = el("button", { class: "btn danger", style: "margin-top:10px;" }, T("position.deleteAccount"));
     delBtn.addEventListener("click", () => {
       if (usage.total > 0) {
         openReassign(acc, usage, onDone);
       } else {
-        confirmAction("Delete this account?", () => { db.deleteAccount(acc.id); closeSheet(); onDone(); });
+        confirmAction(T("position.confirmDeleteAccount"), () => { db.deleteAccount(acc.id); closeSheet(); onDone(); });
       }
     });
     form.appendChild(delBtn);
   }
 
-  openSheet(acc ? "Edit account" : "Add account", form);
+  openSheet(acc ? T("position.editAccount") : T("position.addAccountTitle"), form);
 }
 
 function openReassign(acc, usage, onDone) {
   const others = db.data.accounts.filter((a) => a.id !== acc.id).map((a) => ({ value: a.id, label: a.name }));
   const wrap = el("div");
   wrap.appendChild(el("p", { style: "font-size:13px; color:var(--text-dim); margin-bottom:16px;" },
-    `${acc.name} still has ${usage.total} item${usage.total === 1 ? "" : "s"} attached. Move them to another account first, or they'd be left unassigned and your ledger would stop balancing.`));
+    T("position.stillHasItems", { name: acc.name, n: usage.total })));
 
   if (!others.length) {
     wrap.appendChild(el("p", { style: "font-size:13px; color:var(--danger);" },
-      "This is your only account, so there's nowhere to move them. Add another account first."));
-    wrap.appendChild(el("button", { class: "btn secondary", style: "margin-top:14px;", onClick: closeSheet }, "Close"));
-    openSheet("Can't delete yet", wrap);
+      T("position.onlyAccount")));
+    wrap.appendChild(el("button", { class: "btn secondary", style: "margin-top:14px;", onClick: closeSheet }, T("common.close")));
+    openSheet(T("position.cantDeleteYet"), wrap);
     return;
   }
 
   const sel = selectInput(others, {});
-  wrap.appendChild(field("Move everything to", sel));
-  const go = el("button", { class: "btn danger" }, "Move and delete");
+  wrap.appendChild(field(T("position.moveEverythingTo"), sel));
+  const go = el("button", { class: "btn danger" }, T("position.moveAndDelete"));
   go.addEventListener("click", () => {
     db.reassignAccount(acc.id, sel.value);
     db.deleteAccount(acc.id);
     closeSheet();
-    showToast("Account deleted");
+    showToast(T("position.accountDeleted"));
     onDone();
   });
   wrap.appendChild(go);
-  openSheet("Move items first", wrap);
+  openSheet(T("position.moveItemsFirst"), wrap);
 }
 
 function openTxEditor(id, onDone) {
@@ -279,26 +279,26 @@ function openTxEditor(id, onDone) {
   const form = el("div");
   const isIncome = tx.amount >= 0;
 
-  const typeSelect = selectInput([{ value: "expense", label: "Expense" }, { value: "income", label: "Income" }], { value: isIncome ? "income" : "expense" });
+  const typeSelect = selectInput([{ value: "expense", label: T("common.expense") }, { value: "income", label: T("common.income") }], { value: isIncome ? "income" : "expense" });
   const amountInput = numberInput({ value: Math.abs(tx.amount) });
   const dateEl = dateInput({ value: tx.date });
-  const { wrap: catWrap, input: categoryInput, refresh } = categoryField("Category", isIncome ? "income" : "expense", tx.category);
+  const { wrap: catWrap, input: categoryInput, refresh } = categoryField(T("common.category"), isIncome ? "income" : "expense", tx.category);
   const accountSelect = selectInput(db.data.accounts.map((a) => ({ value: a.id, label: a.name })), { value: tx.accountId || "" });
   const noteInputEl = textInput({ value: tx.note || "" });
   typeSelect.addEventListener("change", () => refresh(typeSelect.value));
 
-  form.appendChild(field("Type", typeSelect));
-  form.appendChild(field("Amount (UZS)", amountInput));
-  form.appendChild(field("Date", dateEl));
+  form.appendChild(field(T("common.type"), typeSelect));
+  form.appendChild(field(T("common.amount"), amountInput));
+  form.appendChild(field(T("common.date"), dateEl));
   form.appendChild(catWrap);
-  form.appendChild(field("Account", accountSelect));
-  form.appendChild(field("Note", noteInputEl));
+  form.appendChild(field(T("tx.account"), accountSelect));
+  form.appendChild(field(T("tx.noteShort"), noteInputEl));
 
-  const saveBtn = el("button", { class: "btn" }, "Save changes");
+  const saveBtn = el("button", { class: "btn" }, T("common.saveChanges"));
   saveBtn.addEventListener("click", () => {
     const raw = parseFloat(amountInput.value);
-    if (!raw || raw <= 0) { showToast("Enter an amount greater than 0"); return; }
-    if (!accountSelect.value) { showToast("Pick an account"); return; }
+    if (!raw || raw <= 0) { showToast(T("common.needAmount")); return; }
+    if (!accountSelect.value) { showToast(T("position.pickAccount")); return; }
     db.updateActual(tx.id, {
       amount: typeSelect.value === "expense" ? -Math.abs(raw) : Math.abs(raw),
       date: dateEl.value,
@@ -308,11 +308,11 @@ function openTxEditor(id, onDone) {
     });
     closeSheet();
     onDone();
-    showToast("Updated");
+    showToast(T("common.updated"));
   });
   form.appendChild(saveBtn);
 
-  openSheet("Edit transaction", form);
+  openSheet(T("position.editTransaction"), form);
 }
 
 export function openAddTransaction(onDone) {
@@ -331,29 +331,29 @@ export function openOpeningEditor(onDone) {
   if (!accounts.length) {
     const amt = numberInput({ value: db.openingBalance() });
     const dateEl = dateInput({ value: db.data.meta.openingDate });
-    form.appendChild(field("Starting cash (UZS)", amt));
-    form.appendChild(field("Tracking starts", dateEl));
+    form.appendChild(field(T("position.startingCash"), amt));
+    form.appendChild(field(T("position.trackingStarts"), dateEl));
     const save = document.createElement("button");
     save.className = "btn";
-    save.textContent = "Save";
+    save.textContent = T("common.save");
     save.addEventListener("click", () => {
       db.setOpeningBalance(parseFloat(amt.value) || 0, dateEl.value);
       closeSheet();
       onDone();
-      showToast("Opening balance updated");
+      showToast(T("position.openingUpdated"));
     });
     form.appendChild(save);
-    openSheet("Opening balance", form);
+    openSheet(T("position.openingBalance"), form);
     return;
   }
 
   const intro = document.createElement("p");
   intro.style.cssText = "color:var(--text-dim); font-size:12px; margin:0 0 14px;";
-  intro.textContent = "How much was on each account on the day you started. Change any of these and the opening total updates with them.";
+  intro.textContent = T("position.openingIntro");
   form.appendChild(intro);
 
   const dateEl = dateInput({ value: db.data.meta.openingDate });
-  form.appendChild(field("Tracking starts", dateEl));
+  form.appendChild(field(T("position.trackingStarts"), dateEl));
 
   const totalLine = document.createElement("p");
   totalLine.style.cssText = "font-size:13px; font-weight:700; margin:4px 0 16px;";
@@ -367,14 +367,14 @@ export function openOpeningEditor(onDone) {
 
   function updateTotal() {
     const sum = inputs.reduce((s, i) => s + (parseFloat(i.input.value) || 0), 0);
-    totalLine.textContent = `Opening total: ${fmtMoney(sum)}`;
+    totalLine.textContent = T("position.openingTotal", { amount: fmtMoney(sum) });
   }
   updateTotal();
   form.appendChild(totalLine);
 
   const save = document.createElement("button");
   save.className = "btn";
-  save.textContent = "Save";
+  save.textContent = T("common.save");
   save.addEventListener("click", () => {
     db.setAccountOpeningBalances(
       inputs.map((i) => ({ id: i.id, openingBalance: parseFloat(i.input.value) || 0 })),
@@ -382,9 +382,9 @@ export function openOpeningEditor(onDone) {
     );
     closeSheet();
     onDone();
-    showToast("Opening balances updated");
+    showToast(T("position.openingUpdated"));
   });
   form.appendChild(save);
 
-  openSheet("Opening balance", form);
+  openSheet(T("position.openingBalance"), form);
 }

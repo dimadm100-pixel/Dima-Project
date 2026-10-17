@@ -1,6 +1,8 @@
 // Date helpers operate purely on "YYYY-MM-DD" strings using UTC arithmetic
 // so calendar math never drifts a day due to the browser's local timezone.
 
+import { t as T } from "./i18n.js";
+
 export function todayStr() {
   const d = new Date();
   const y = d.getFullYear();
@@ -36,23 +38,27 @@ export function addMonths(monthOrDate, n) {
   return `${ny}-${String(nm).padStart(2, "0")}`;
 }
 
-const MONTH_NAMES = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+// Month names come from the chosen language, so a date reads naturally
+// wherever it appears rather than being English inside a Russian sentence.
+function monthName(m) {
+  return T(`fmt.months.${m - 1}`);
+}
 
 export function fmtDate(dateStr) {
   const [y, m, d] = dateStr.split("-").map(Number);
-  return `${d} ${MONTH_NAMES[m - 1]} ${y}`;
+  return `${d} ${monthName(m)} ${y}`;
 }
 
 export function fmtMonth(monthKey_) {
   const [y, m] = monthKey_.split("-").map(Number);
-  return `${MONTH_NAMES[m - 1]} ${y}`;
+  return `${monthName(m)} ${y}`;
 }
 
-export function fmtMoney(amount, currency = "UZS") {
+export function fmtMoney(amount, currency = null) {
   const n = Math.round(Number(amount) || 0);
   const sign = n < 0 ? "-" : "";
   const abs = Math.abs(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
-  return `${sign}${abs} ${currency}`;
+  return `${sign}${abs} ${currency === null ? T("fmt.currency") : currency}`;
 }
 
 export function fmtMoneyShort(amount) {

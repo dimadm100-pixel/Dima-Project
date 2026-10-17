@@ -1,4 +1,5 @@
 import { db } from "../db.js";
+import { t as T } from "../i18n.js";
 import { fmtMoney, fmtMoneyShort, fmtDate, fmtMonth, todayStr, addDays, svgSparkline, escapeHtml } from "../utils.js";
 import { showToast } from "../ui.js";
 import { analyze } from "../insights.js";
@@ -36,8 +37,8 @@ function reminders() {
     if (dismissed[a.id] === today) continue;
     out.push({
       id: a.id,
-      title: `${a.ccy} is ${a.direction} ${Math.round(a.threshold).toLocaleString("en-US")}`,
-      detail: `Now ${Math.round(a.rate).toLocaleString("en-US")} UZS per ${a.ccy} — past the threshold you set.`,
+      title: T(a.direction === "above" ? "dashboard.fxAbove" : "dashboard.fxBelow", { ccy: a.ccy, threshold: Math.round(a.threshold).toLocaleString("en-US") }),
+      detail: T("dashboard.fxDetail", { rate: Math.round(a.rate).toLocaleString("en-US"), ccy: a.ccy }),
       severity: "medium",
       link: "#fx"
     });
@@ -46,7 +47,7 @@ function reminders() {
   // Weekly digest: offered once per ISO week, on or after Sunday.
   const week = isoWeekKey(today);
   if (dismissed[`digest-${week}`] !== "seen" && new Date(today + "T00:00:00Z").getUTCDay() === 0) {
-    out.push({ id: `digest-${week}`, title: "Your weekly summary is ready", detail: "See how last week went across income, spending and goals.", severity: "low", link: "#insights" });
+    out.push({ id: `digest-${week}`, title: T("dashboard.digestTitle"), detail: T("dashboard.digestDetail"), severity: "low", link: "#insights" });
   }
   return out.slice(0, 3);
 }
@@ -98,13 +99,13 @@ export function renderDashboard(container) {
   const repeats = quickRepeats();
 
   const goalCards = [
-    goalMiniCard("Marriage", db.data.goals.marriage.reserveAnnualUSD * effectiveRate(db.data.goals.marriage.fxRate), db.data.goals.marriage.savedSoFar, "#goals/marriage"),
-    goalMiniCard("Home", homeTargetUZS(), db.data.goals.home.savedSoFar, "#goals/home"),
-    goalMiniCard("Umrah", umrahTotalUZS(), db.data.goals.umrah.savedSoFar, "#goals/umrah")
+    goalMiniCard(T("goals.marriage"), db.data.goals.marriage.reserveAnnualUSD * effectiveRate(db.data.goals.marriage.fxRate), db.data.goals.marriage.savedSoFar, "#goals/marriage"),
+    goalMiniCard(T("goals.home"), homeTargetUZS(), db.data.goals.home.savedSoFar, "#goals/home"),
+    goalMiniCard(T("goals.umrah"), umrahTotalUZS(), db.data.goals.umrah.savedSoFar, "#goals/umrah")
   ].join("");
 
   container.innerHTML = `
-    <div class="page-title">Dashboard</div>
+    <div class="page-title">${T("dashboard.title")}</div>
     <p class="page-sub">${fmtDate(today)}</p>
 
     ${activeReminders.map((r) => `
@@ -112,7 +113,7 @@ export function renderDashboard(container) {
         <div style="flex:1;">
           <div style="font-size:14px; font-weight:600;">${escapeHtml(r.title)}</div>
           <div style="font-size:12px; color:var(--text-dim); margin-top:4px;">${escapeHtml(r.detail)}</div>
-          ${r.link ? `<button class="mini-btn" style="margin-top:8px;" data-reminder-link="${r.link}">Open</button>` : ""}
+          ${r.link ? `<button class="mini-btn" style="margin-top:8px;" data-reminder-link="${r.link}">${T("common.open")}</button>` : ""}
         </div>
         <button class="mini-btn" data-dismiss="${escapeHtml(r.id)}">✕</button>
       </div>
@@ -120,69 +121,69 @@ export function renderDashboard(container) {
 
     ${repeats.length ? `
     <div class="card">
-      <h2>Log again</h2>
+      <h2>${T("dashboard.logAgain")}</h2>
       <div class="chip-row">
         ${repeats.map((r) => `
           <button class="chip" data-repeat='${escapeHtml(JSON.stringify({ category: r.category, amount: r.amount }))}'>
             ${escapeHtml(r.category)} · ${fmtMoneyShort(r.amount)}
           </button>`).join("")}
       </div>
-      <div class="sub" style="color:var(--text-dim); font-size:11px; margin-top:8px;">One tap logs it for today.</div>
+      <div class="sub" style="color:var(--text-dim); font-size:11px; margin-top:8px;">${T("dashboard.logAgainHint")}</div>
     </div>` : ""}
 
     <div class="card hero-balance">
-      <div class="label">Current cash balance</div>
+      <div class="label">${T("dashboard.currentBalance")}</div>
       <div class="amount" style="color:${balance < 0 ? "var(--danger)" : "var(--text)"};">${fmtMoney(balance)}</div>
       ${balance < 0
-        ? `<div class="sub" style="color:var(--danger); font-size:12px;">Balance is negative</div>`
+        ? `<div class="sub" style="color:var(--danger); font-size:12px;">${T("dashboard.negativeBalance")}</div>`
         : runwayDays !== null
-          ? `<div class="sub" style="color:var(--text-dim); font-size:12px;">~${runwayDays} days of runway, based on ${runwaySource === "actual" ? "your last 30 days" : "your budget"}</div>`
+          ? `<div class="sub" style="color:var(--text-dim); font-size:12px;">${T("dashboard.runway", { days: runwayDays, source: runwaySource === "actual" ? T("dashboard.runwayActual") : T("dashboard.runwayBudget") })}</div>`
           : ""}
     </div>
 
     <div class="grid-2">
       <div class="stat">
-        <div class="label">Income this month</div>
+        <div class="label">${T("dashboard.incomeMonth")}</div>
         <div class="value pos">${fmtMoneyShort(pnl.incomeTotal)}</div>
       </div>
       <div class="stat">
-        <div class="label">Expenses this month</div>
+        <div class="label">${T("dashboard.expensesMonth")}</div>
         <div class="value neg">${fmtMoneyShort(pnl.expenseTotal)}</div>
       </div>
     </div>
 
     <div class="card">
-      <h2>Balance trend (next 21 days)</h2>
+      <h2>${T("dashboard.trendTitle")}</h2>
       ${sparkHTML}
-      <div class="sub" style="color:var(--text-dim); font-size:11px; margin-top:6px;">Solid line = actual to date, then budget projection</div>
+      <div class="sub" style="color:var(--text-dim); font-size:11px; margin-top:6px;">${T("dashboard.trendHint")}</div>
     </div>
 
     ${alerts.length ? `
     <div class="card" id="budget-alerts-card" style="cursor:pointer;">
-      <h2>Budget watch — ${fmtMonth(thisMonth)}</h2>
+      <h2>${T("dashboard.budgetWatch", { month: fmtMonth(thisMonth) })}</h2>
       ${alerts.map((a) => `
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
           <div>
-            <span class="badge ${a.severity === "over" ? "danger" : "warn"}">${a.severity === "over" ? "over budget" : "ahead of pace"}</span>
+            <span class="badge ${a.severity === "over" ? "danger" : "warn"}">${a.severity === "over" ? T("dashboard.overBudget") : T("dashboard.aheadOfPace")}</span>
             <div style="font-size:13px; margin-top:4px;">${escapeHtml(a.category)}</div>
           </div>
           <div style="text-align:right;">
             <div style="font-size:13px; font-weight:700; color:${a.severity === "over" ? "var(--danger)" : "var(--warn)"};">+${fmtMoneyShort(a.overBy)}</div>
-            <div style="font-size:11px; color:var(--text-dim);">${fmtMoneyShort(a.actual)} of ${fmtMoneyShort(a.planned)}</div>
+            <div style="font-size:11px; color:var(--text-dim);">${T("dashboard.xOfY", { actual: fmtMoneyShort(a.actual), planned: fmtMoneyShort(a.planned) })}</div>
           </div>
         </div>
       `).join("")}
-      <div class="sub" style="color:var(--text-dim); font-size:11px;">Tap to review in Cash Flow</div>
+      <div class="sub" style="color:var(--text-dim); font-size:11px;">${T("dashboard.tapToReview")}</div>
     </div>` : ""}
 
     <div class="card">
-      <h2>Goals</h2>
+      <h2>${T("nav.goals")}</h2>
       <div class="grid-3">${goalCards}</div>
     </div>
 
     ${recent.length ? `
     <div class="card">
-      <h2>Recent activity</h2>
+      <h2>${T("dashboard.recentActivity")}</h2>
       <table>
         <tbody>
           ${recent.map((t) => `
@@ -194,13 +195,13 @@ export function renderDashboard(container) {
       </table>
     </div>` : `
     <div class="card">
-      <h2>Recent activity</h2>
-      <div class="empty-state">No transactions logged yet — tap + to add your first one.</div>
+      <h2>${T("dashboard.recentActivity")}</h2>
+      <div class="empty-state">${T("dashboard.noTransactions")}</div>
     </div>`}
 
     ${upcoming.length ? `
     <div class="card">
-      <h2>Upcoming (budget)</h2>
+      <h2>${T("dashboard.upcoming")}</h2>
       <table>
         <tbody>
           ${upcoming.map((b) => `
@@ -213,13 +214,13 @@ export function renderDashboard(container) {
     </div>` : ""}
 
     <div class="card">
-      <h2>Credit rating</h2>
+      <h2>${T("nav.creditrating")}</h2>
       ${latestCredit ? `
         <div class="stat" style="border:none; padding:0;">
           <div class="value">${latestCredit.score}</div>
-          <div class="sub">as of ${fmtDate(latestCredit.date)}</div>
+          <div class="sub">${T("settings.asOf", { date: fmtDate(latestCredit.date) })}</div>
         </div>
-      ` : `<div class="empty-state">No credit score logged yet.</div>`}
+      ` : `<div class="empty-state">${T("dashboard.noCreditScore")}</div>`}
     </div>
   `;
 

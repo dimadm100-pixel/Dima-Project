@@ -7,16 +7,18 @@
 // except api.anthropic.com.
 
 import { storageKey, readWithLegacy } from "./config.js";
+import { t as T } from "./i18n.js";
 
 const API_URL = "https://api.anthropic.com/v1/messages";
 const API_VERSION = "2023-06-01";
 const KEY_STORAGE = storageKey("apiKey");
 const MODEL_STORAGE = storageKey("model");
 
+// `note` is a translation key; the model names themselves are not translated.
 export const MODELS = [
-  { id: "claude-opus-5", label: "Claude Opus 5", note: "Most capable. Best judgement on your finances." },
-  { id: "claude-sonnet-5", label: "Claude Sonnet 5", note: "Cheaper, still strong." },
-  { id: "claude-haiku-4-5", label: "Claude Haiku 4.5", note: "Cheapest and fastest. Fine for summaries." }
+  { id: "claude-opus-5", label: "Claude Opus 5", note: "model.opus" },
+  { id: "claude-sonnet-5", label: "Claude Sonnet 5", note: "model.sonnet" },
+  { id: "claude-haiku-4-5", label: "Claude Haiku 4.5", note: "model.haiku" }
 ];
 
 export const DEFAULT_MODEL = "claude-opus-5";
@@ -61,17 +63,17 @@ function describeFailure(status, body) {
   switch (status) {
     case 401:
     case 403:
-      return new AIError("That API key was rejected. Check it in Settings — it should start with 'sk-ant-'.", { status, kind: "auth" });
+      return new AIError(T("ai.badKey"), { status, kind: "auth" });
     case 400:
       return new AIError(apiMessage || "The request was rejected as invalid.", { status, kind: "request" });
     case 404:
-      return new AIError("That model isn't available on your account. Try a different one in Settings.", { status, kind: "model" });
+      return new AIError(T("ai.badModel"), { status, kind: "model" });
     case 429:
-      return new AIError("Rate limited — too many requests. Wait a moment and try again.", { status, kind: "rate_limit" });
+      return new AIError(T("ai.rateLimited"), { status, kind: "rate_limit" });
     case 529:
-      return new AIError("Anthropic's API is overloaded right now. Try again shortly.", { status, kind: "overloaded" });
+      return new AIError(T("ai.overloaded"), { status, kind: "overloaded" });
     default:
-      if (status >= 500) return new AIError("Anthropic's API had a server error. Try again shortly.", { status, kind: "server" });
+      if (status >= 500) return new AIError(T("ai.serverError"), { status, kind: "server" });
       return new AIError(apiMessage || `Request failed (HTTP ${status}).`, { status, kind: "unknown" });
   }
 }
@@ -84,7 +86,7 @@ async function parseFailure(res) {
 
 function assertKey() {
   if (!hasApiKey()) {
-    throw new AIError("No API key set. Add one in Settings to turn on the AI features.", { kind: "no_key" });
+    throw new AIError(T("ai.noKey"), { kind: "no_key" });
   }
 }
 
@@ -112,7 +114,7 @@ export async function complete({ system, messages, tools, toolChoice, maxTokens 
   try {
     res = await fetch(API_URL, { method: "POST", headers: headers(), body: JSON.stringify(body) });
   } catch (e) {
-    throw new AIError("Couldn't reach the API. Check your internet connection.", { kind: "network" });
+    throw new AIError(T("ai.network"), { kind: "network" });
   }
   if (!res.ok) throw await parseFailure(res);
   return res.json();
@@ -131,7 +133,7 @@ export async function stream({ system, messages, maxTokens, onText }) {
   try {
     res = await fetch(API_URL, { method: "POST", headers: headers(), body: JSON.stringify(body) });
   } catch (e) {
-    throw new AIError("Couldn't reach the API. Check your internet connection.", { kind: "network" });
+    throw new AIError(T("ai.network"), { kind: "network" });
   }
   if (!res.ok) throw await parseFailure(res);
 

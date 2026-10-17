@@ -20,27 +20,30 @@ import { openTransactionModal } from "./pages/transactionForm.js";
 import { openSpecEditor } from "./pages/specifications.js";
 import { needsOnboarding, renderOnboarding } from "./pages/onboarding.js";
 import { openSheet, closeSheet } from "./ui.js";
+import { t as T, onLangChange, getLang } from "./i18n.js";
 
 // `primary` decides what gets a slot in the phone's bottom bar; everything
 // else lives on the More sheet (and the full desktop nav).
+// `label` is a translation key, resolved every time the nav is drawn so it
+// follows the chosen language rather than being baked in at load.
 const ROUTES = [
-  { key: "cashposition", label: "Position", icon: "💵", render: renderCashPosition, primary: true },
-  { key: "cashflow", label: "Cash Flow", icon: "📅", render: renderCashFlow, primary: true },
-  { key: "dashboard", label: "Home", icon: "🏠", render: renderDashboard, primary: true },
-  { key: "planner", label: "Planner", icon: "🧭", render: renderPlanner, primary: true },
-  { key: "insights", label: "Insights", icon: "💡", render: renderInsights, primary: true },
-  { key: "fx", label: "FX Rates", icon: "💱", render: renderFx },
-  { key: "assistant", label: "Assistant", icon: "🤖", render: renderAssistant },
-  { key: "search", label: "Search", icon: "🔍", render: renderSearch },
-  { key: "acccashflow", label: "Acc. Cash", icon: "🧮", render: renderAccCashFlow },
-  { key: "pnl", label: "P&L", icon: "📈", render: renderPnl },
-  { key: "balancesheet", label: "Balance", icon: "⚖️", render: renderBalanceSheet },
-  { key: "goals", label: "Goals", icon: "🎯", render: (c, sub) => renderGoals(c, sub) },
-  { key: "targets", label: "Targets", icon: "🏁", render: renderTargets },
-  { key: "specifications", label: "Specs", icon: "🧾", render: renderSpecifications },
-  { key: "creditrating", label: "Credit", icon: "💳", render: renderCreditRating },
-  { key: "settings", label: "Settings", icon: "⚙️", render: renderSettings },
-  { key: "help", label: "Guide", icon: "❓", render: renderHelp }
+  { key: "cashposition", label: "nav.cashposition", icon: "💵", render: renderCashPosition, primary: true },
+  { key: "cashflow", label: "nav.cashflow", icon: "📅", render: renderCashFlow, primary: true },
+  { key: "dashboard", label: "nav.dashboard", icon: "🏠", render: renderDashboard, primary: true },
+  { key: "planner", label: "nav.planner", icon: "🧭", render: renderPlanner, primary: true },
+  { key: "insights", label: "nav.insights", icon: "💡", render: renderInsights, primary: true },
+  { key: "fx", label: "nav.fx", icon: "💱", render: renderFx },
+  { key: "assistant", label: "nav.assistant", icon: "🤖", render: renderAssistant },
+  { key: "search", label: "nav.search", icon: "🔍", render: renderSearch },
+  { key: "acccashflow", label: "nav.acccashflow", icon: "🧮", render: renderAccCashFlow },
+  { key: "pnl", label: "nav.pnl", icon: "📈", render: renderPnl },
+  { key: "balancesheet", label: "nav.balancesheet", icon: "⚖️", render: renderBalanceSheet },
+  { key: "goals", label: "nav.goals", icon: "🎯", render: (c, sub) => renderGoals(c, sub) },
+  { key: "targets", label: "nav.targets", icon: "🏁", render: renderTargets },
+  { key: "specifications", label: "nav.specifications", icon: "🧾", render: renderSpecifications },
+  { key: "creditrating", label: "nav.creditrating", icon: "💳", render: renderCreditRating },
+  { key: "settings", label: "nav.settings", icon: "⚙️", render: renderSettings },
+  { key: "help", label: "nav.help", icon: "❓", render: renderHelp }
 ];
 
 const view = document.getElementById("view");
@@ -50,9 +53,9 @@ const desktopNav = document.getElementById("desktop-nav");
 function buildNav() {
   const primary = ROUTES.filter((r) => r.primary);
   bottomNav.innerHTML =
-    primary.map((r) => `<a href="#${r.key}" data-nav="${r.key}"><span class="nav-icon">${r.icon}</span>${r.label}</a>`).join("") +
-    `<a href="#" id="more-nav"><span class="nav-icon">⋯</span>More</a>`;
-  desktopNav.innerHTML = ROUTES.map((r) => `<a href="#${r.key}" data-nav="${r.key}">${r.icon} ${r.label}</a>`).join("");
+    primary.map((r) => `<a href="#${r.key}" data-nav="${r.key}"><span class="nav-icon">${r.icon}</span>${T(r.label)}</a>`).join("") +
+    `<a href="#" id="more-nav"><span class="nav-icon">⋯</span>${T("nav.more")}</a>`;
+  desktopNav.innerHTML = ROUTES.map((r) => `<a href="#${r.key}" data-nav="${r.key}">${r.icon} ${T(r.label)}</a>`).join("");
 
   bottomNav.querySelector("#more-nav").addEventListener("click", (e) => {
     e.preventDefault();
@@ -65,7 +68,7 @@ function openMoreSheet() {
   const wrap = document.createElement("div");
   wrap.innerHTML = rest.map((r) => `
     <button class="btn secondary" style="justify-content:flex-start; margin-bottom:8px;" data-go="${r.key}">
-      ${r.icon}&nbsp;&nbsp;${r.label}
+      ${r.icon}&nbsp;&nbsp;${T(r.label)}
     </button>`).join("");
   wrap.querySelectorAll("[data-go]").forEach((b) => {
     b.addEventListener("click", () => {
@@ -73,7 +76,7 @@ function openMoreSheet() {
       window.location.hash = `#${b.dataset.go}`;
     });
   });
-  openSheet("More", wrap);
+  openSheet(T("nav.more"), wrap);
 }
 
 function currentRoute() {
@@ -105,8 +108,26 @@ function render() {
   window.scrollTo(0, 0);
 }
 
+// Text that lives in index.html rather than in a page.
+function applyShellText() {
+  document.documentElement.lang = getLang();
+  const set = (sel, text) => { const n = document.querySelector(sel); if (n) n.textContent = text; };
+  set(".page-switch a[href='./index.html']", `💰 ${T("shell.finance")}`);
+  set(".page-switch a[href='./personal.html']", `🗓️ ${T("shell.personal")}`);
+  const install = document.getElementById("install-btn");
+  if (install) install.title = T("shell.install");
+  const settings = document.getElementById("settings-link");
+  if (settings) settings.title = T("nav.settings");
+  const fab = document.getElementById("fab");
+  if (fab) fab.title = T("shell.addTransaction");
+}
+
 function init() {
   buildNav();
+  applyShellText();
+  // Redraw everything on a language change: the nav labels, the shell text
+  // and whichever page is open.
+  onLangChange(() => { buildNav(); applyShellText(); render(); });
   window.addEventListener("hashchange", render);
   db.onChange(() => {
     // Re-render current page whenever data changes from elsewhere (e.g. import).

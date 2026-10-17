@@ -1,4 +1,5 @@
 import { db } from "../db.js";
+import { t as T } from "../i18n.js";
 import { fmtMoney, fmtDate, escapeHtml } from "../utils.js";
 import { showToast } from "../ui.js";
 
@@ -12,44 +13,44 @@ export function renderSearch(container) {
   const categories = db.allCategories();
 
   container.innerHTML = `
-    <div class="page-title">Search</div>
-    <p class="page-sub">Find anything, filter it, and see the totals.</p>
+    <div class="page-title">${T("search.title")}</div>
+    <p class="page-sub">${T("search.sub")}</p>
 
     <div class="card">
       <div class="field">
-        <input type="search" id="q" placeholder="Search category, note, amount…" value="${escapeHtml(filters.query)}">
+        <input type="search" id="q" placeholder="${T("search.placeholder")}" value="${escapeHtml(filters.query)}">
       </div>
       <div class="segmented" style="margin-bottom:12px;">
-        <button data-source="actuals" class="${filters.source === "actuals" ? "active" : ""}">Actual</button>
-        <button data-source="budget" class="${filters.source === "budget" ? "active" : ""}">Budget</button>
+        <button data-source="actuals" class="${filters.source === "actuals" ? "active" : ""}">${T("search.actual")}</button>
+        <button data-source="budget" class="${filters.source === "budget" ? "active" : ""}">${T("search.budget")}</button>
       </div>
       <div class="segmented" style="margin-bottom:12px;">
-        <button data-kind="all" class="${filters.kind === "all" ? "active" : ""}">All</button>
-        <button data-kind="income" class="${filters.kind === "income" ? "active" : ""}">Income</button>
-        <button data-kind="expense" class="${filters.kind === "expense" ? "active" : ""}">Expense</button>
+        <button data-kind="all" class="${filters.kind === "all" ? "active" : ""}">${T("search.all")}</button>
+        <button data-kind="income" class="${filters.kind === "income" ? "active" : ""}">${T("common.income")}</button>
+        <button data-kind="expense" class="${filters.kind === "expense" ? "active" : ""}">${T("common.expense")}</button>
       </div>
       <div class="field-row">
-        <div class="field"><label>From</label><input type="date" id="from" value="${filters.from}"></div>
-        <div class="field"><label>To</label><input type="date" id="to" value="${filters.to}"></div>
+        <div class="field"><label>${T("common.from")}</label><input type="date" id="from" value="${filters.from}"></div>
+        <div class="field"><label>${T("common.to")}</label><input type="date" id="to" value="${filters.to}"></div>
       </div>
       <div class="field">
-        <label>Category</label>
+        <label>${T("common.category")}</label>
         <select id="category">
-          <option value="">All categories</option>
+          <option value="">${T("search.allCategories")}</option>
           ${categories.map((c) => `<option value="${escapeHtml(c)}" ${c === filters.category ? "selected" : ""}>${escapeHtml(c)}</option>`).join("")}
         </select>
       </div>
-      <button class="btn secondary small" id="reset">Reset filters</button>
+      <button class="btn secondary small" id="reset">${T("search.resetFilters")}</button>
     </div>
 
     <div class="grid-3">
-      <div class="stat"><div class="label">Matches</div><div class="value" style="font-size:16px;">${results.length}</div></div>
-      <div class="stat"><div class="label">In</div><div class="value pos" style="font-size:16px;">${fmtMoney(income)}</div></div>
-      <div class="stat"><div class="label">Out</div><div class="value neg" style="font-size:16px;">${fmtMoney(expense)}</div></div>
+      <div class="stat"><div class="label">${T("search.matches")}</div><div class="value" style="font-size:16px;">${results.length}</div></div>
+      <div class="stat"><div class="label">${T("search.in")}</div><div class="value pos" style="font-size:16px;">${fmtMoney(income)}</div></div>
+      <div class="stat"><div class="label">${T("search.out")}</div><div class="value neg" style="font-size:16px;">${fmtMoney(expense)}</div></div>
     </div>
 
     <div class="card">
-      <h2>Results <span style="font-weight:400;color:var(--text-dim);font-size:12px;">net ${fmtMoney(total)}</span></h2>
+      <h2>${T("search.results")} <span style="font-weight:400;color:var(--text-dim);font-size:12px;">${T("search.net", { amount: fmtMoney(total) })}</span></h2>
       ${results.length ? `
       <table>
         <tbody>
@@ -60,9 +61,9 @@ export function renderSearch(container) {
             </tr>`).join("")}
         </tbody>
       </table>
-      ${results.length > 300 ? `<p style="font-size:11px; color:var(--text-dim); margin-top:8px;">Showing first 300 of ${results.length}.</p>` : ""}
-      <button class="btn secondary small" id="export-csv" style="margin-top:12px;">Export these as CSV</button>
-      ` : `<div class="empty-state">Nothing matches those filters.</div>`}
+      ${results.length > 300 ? `<p style="font-size:11px; color:var(--text-dim); margin-top:8px;">${T("search.showingFirst", { n: results.length })}</p>` : ""}
+      <button class="btn secondary small" id="export-csv" style="margin-top:12px;">${T("search.exportCsv")}</button>
+      ` : `<div class="empty-state">${T("search.noMatches")}</div>`}
     </div>
   `;
 
@@ -114,5 +115,5 @@ function exportCSV(rows) {
   a.click();
   a.remove();
   URL.revokeObjectURL(url);
-  showToast("CSV exported");
+  showToast(T("search.csvExported"));
 }

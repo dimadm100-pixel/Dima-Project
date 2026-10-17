@@ -1,11 +1,12 @@
 import { db } from "../db.js";
+import { t as T } from "../i18n.js";
 import { analyze, buildAIContext } from "../insights.js";
 import { hasApiKey, stream, AIError } from "../ai.js";
 import { fmtMoney, fmtMonth, todayStr, escapeHtml, svgSparkline } from "../utils.js";
 import { showToast } from "../ui.js";
 
 const SEVERITY_BADGE = { high: "danger", medium: "warn", low: "" };
-const SEVERITY_LABEL = { high: "needs attention", medium: "worth a look", low: "fyi" };
+const SEVERITY_LABEL = { high: "insights.sevHigh", medium: "insights.sevMedium", low: "insights.sevLow" };
 
 export function renderInsights(container) {
   const findings = analyze();
@@ -15,24 +16,24 @@ export function renderInsights(container) {
   const rateFinding = findings.find((f) => f.kind === "savings_rate");
 
   container.innerHTML = `
-    <div class="page-title">Insights</div>
-    <p class="page-sub">Analysis of your actual numbers. Works offline — no AI needed.</p>
+    <div class="page-title">${T("nav.insights")}</div>
+    <p class="page-sub">${T("insights.sub")}</p>
 
     <div class="grid-2">
       <div class="stat">
-        <div class="label">Savings rate</div>
+        <div class="label">${T("insights.savingsRate")}</div>
         <div class="value ${savingsRate !== null && savingsRate >= 0 ? "pos" : "neg"}">${savingsRate === null ? "—" : savingsRate + "%"}</div>
         <div class="sub">${fmtMonth(thisMonth)}</div>
       </div>
       <div class="stat">
-        <div class="label">Net this month</div>
+        <div class="label">${T("insights.netThisMonth")}</div>
         <div class="value ${pnl.net >= 0 ? "pos" : "neg"}">${fmtMoney(pnl.net)}</div>
       </div>
     </div>
 
     ${rateFinding?.series?.length > 1 ? `
     <div class="card">
-      <h2>Savings rate trend</h2>
+      <h2>${T("insights.savingsTrend")}</h2>
       ${svgSparkline(rateFinding.series.map((s) => ({ value: s.rate })), { height: 60 })}
       <div class="legend">
         ${rateFinding.series.map((s) => `<div class="legend-item">${fmtMonth(s.month)}: ${s.rate}%</div>`).join("")}
@@ -40,21 +41,21 @@ export function renderInsights(container) {
     </div>` : ""}
 
     <div class="card">
-      <h2>What I'm seeing <span style="font-weight:400;color:var(--text-dim);font-size:12px;">(${findings.length})</span></h2>
-      ${findings.length ? findings.map(findingHTML).join("") : `<div class="empty-state">Nothing to flag — log a few more days and check back.</div>`}
+      <h2>${T("insights.whatImSeeing")} <span style="font-weight:400;color:var(--text-dim);font-size:12px;">(${findings.length})</span></h2>
+      ${findings.length ? findings.map(findingHTML).join("") : `<div class="empty-state">${T("insights.nothingToFlag")}</div>`}
     </div>
 
     <div class="card">
-      <h2>AI review</h2>
+      <h2>${T("insights.aiReview")}</h2>
       ${hasApiKey() ? `
-        <p style="color:var(--text-dim); font-size:13px; margin-top:-6px;">A written review of this month and where your money could work harder.</p>
-        <button class="btn" id="ai-review-btn">Write my monthly review</button>
+        <p style="color:var(--text-dim); font-size:13px; margin-top:-6px;">${T("insights.aiReviewHint")}</p>
+        <button class="btn" id="ai-review-btn">${T("insights.writeReview")}</button>
         <div id="ai-output" style="margin-top:14px;"></div>
       ` : `
         <div class="empty-state" style="padding:18px 8px;">
           Add an Anthropic API key in Settings to unlock the written review and the AI assistant.
           <div style="height:12px;"></div>
-          <button class="btn secondary small" id="go-settings">Open Settings</button>
+          <button class="btn secondary small" id="go-settings">${T("insights.openSettings")}</button>
         </div>
       `}
     </div>
@@ -67,7 +68,7 @@ export function renderInsights(container) {
     btn.addEventListener("click", () => {
       const payload = JSON.parse(btn.dataset.makeRecurring);
       db.addRecurring({ name: payload.category, category: payload.category, amount: payload.amount, dayOfMonth: payload.dayOfMonth });
-      showToast("Recurring item added");
+      showToast(T("insights.recurringAdded"));
       renderInsights(container);
     });
   });
@@ -80,10 +81,10 @@ function findingHTML(f) {
   const badge = SEVERITY_BADGE[f.severity];
   return `
     <div style="padding:12px 0; border-bottom:1px solid var(--border);">
-      <span class="badge ${badge}">${SEVERITY_LABEL[f.severity]}</span>
+      <span class="badge ${badge}">${T(SEVERITY_LABEL[f.severity])}</span>
       <div style="font-size:14px; font-weight:600; margin-top:6px;">${escapeHtml(f.title)}</div>
       <div style="font-size:13px; color:var(--text-dim); margin-top:4px;">${escapeHtml(f.detail)}</div>
-      ${f.suggestedRecurring ? `<button class="mini-btn" style="margin-top:8px;" data-make-recurring='${escapeHtml(JSON.stringify(f.suggestedRecurring))}'>Set up recurring</button>` : ""}
+      ${f.suggestedRecurring ? `<button class="mini-btn" style="margin-top:8px;" data-make-recurring='${escapeHtml(JSON.stringify(f.suggestedRecurring))}'>${T("insights.setUpRecurring")}</button>` : ""}
     </div>
   `;
 }
@@ -118,8 +119,8 @@ Rules:
 async function runReview(container, btn) {
   const out = container.querySelector("#ai-output");
   btn.disabled = true;
-  btn.textContent = "Thinking…";
-  out.innerHTML = `<div style="color:var(--text-dim); font-size:13px;">Reading your numbers…</div>`;
+  btn.textContent = T("insights.thinking");
+  out.innerHTML = `<div style="color:var(--text-dim); font-size:13px;">${T("insights.readingNumbers")}</div>`;
 
   const context = buildAIContext();
 
@@ -137,12 +138,12 @@ async function runReview(container, btn) {
         out.innerHTML = renderMarkdown(full);
       }
     });
-    if (!acc.trim()) out.innerHTML = `<div class="empty-state">The model returned nothing. Try again.</div>`;
-    btn.textContent = "Regenerate review";
+    if (!acc.trim()) out.innerHTML = `<div class="empty-state">${T("insights.modelEmpty")}</div>`;
+    btn.textContent = T("insights.regenerate");
   } catch (e) {
-    const msg = e instanceof AIError ? e.message : "Something went wrong generating the review.";
+    const msg = e instanceof AIError ? e.message : T("insights.reviewFailed");
     out.innerHTML = `<div style="color:var(--danger); font-size:13px;">${escapeHtml(msg)}</div>`;
-    btn.textContent = "Try again";
+    btn.textContent = T("common.tryAgain");
   } finally {
     btn.disabled = false;
   }

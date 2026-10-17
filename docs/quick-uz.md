@@ -22,7 +22,7 @@ Pastdagi menyuda 5 ta asosiy sahifa, qolgani **More** (⋯) ichida.
 - **Targets** — o'zing belgilagan sanalarda qancha pul bo'lishi kerak edi va qancha bo'ldi.
 - **Specs** — bitta summaning ichi. "Oziq-ovqat 200,000" → non 20,000, yog' 30,000...
 - **Credit** — KATM dan kredit reytingni yozib borish, trendni ko'rish.
-- **Settings** — boshlang'ich balans, takrorlanuvchi to'lovlar, API key va **Export (zaxira nusxa)**.
+- **Settings** — **til (UZ / RU / ENG)**, boshlang'ich balans, takrorlanuvchi to'lovlar, API key va **Export (zaxira nusxa)**.
 
 **Yuqorida** — 💰 Finance ⇄ 🗓️ Personal tugmalari. Personal — pul emas: bugungi reja, ertangi reja, haftalik routine va deadline'lar.
 

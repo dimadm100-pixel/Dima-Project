@@ -25,8 +25,9 @@ After that it opens like a normal app — full screen, and it works without a co
 
 A Welcome screen asks two things:
 
-1. **Where you keep your money** and **how much is on it right now** — your main card, or cash.
-2. **The date your records start** — usually today.
+1. **Your language** — Uzbek, Russian or English.
+2. **Where you keep your money** and **how much is on it right now** — your main card, or cash.
+3. **The date your records start** — usually today.
 
 That is all. You can change any of it later, so don't worry about getting it exactly right.
 
@@ -164,6 +165,7 @@ Record the score you see on KATM from time to time. The app shows the score, the
 
 Not just "basic settings" — the important things live here:
 
+- **Language** — Uzbek, Russian or English. The whole app changes straight away.
 - **Opening balance** — the starting amount and date.
 - **Recurring transactions** — things you pay or earn every month. Set them once, then **"Generate into budget (12 months)"** fills a year of budget in one press.
 - **AI features** — Anthropic API key and model.
