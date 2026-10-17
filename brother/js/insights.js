@@ -3,6 +3,7 @@
 // to the AI as context, so the AI reasons over the same numbers you see.
 
 import { db } from "./db.js";
+import { t as T } from "./i18n.js";
 import { todayStr, addDays, addMonths, fmtMonth } from "./utils.js";
 import { effectiveRate } from "./fx.js";
 
@@ -33,10 +34,10 @@ function overspendingFindings(monthKey) {
     id: `overspend-${a.category}`,
     kind: "overspending",
     severity: a.severity === "over" ? "high" : "medium",
-    title: a.severity === "over" ? `${a.category} is over budget` : `${a.category} is running hot`,
+    title: a.severity === "over" ? T("find.overBudget", { category: a.category }) : T("find.runningHot", { category: a.category }),
     detail: a.severity === "over"
-      ? `You've spent ${money(a.actual)} against a ${money(a.planned)} budget — ${money(a.overBy)} over with the month not done.`
-      : `You've spent ${money(a.actual)} of ${money(a.planned)} already, which is ahead of where you'd expect at this point in the month.`,
+      ? T("find.overBudgetDetail", { actual: money(a.actual), planned: money(a.planned), over: money(a.overBy) })
+      : T("find.runningHotDetail", { actual: money(a.actual), planned: money(a.planned) }),
     amount: a.overBy,
     category: a.category
   }));
@@ -48,8 +49,8 @@ function cashHoleFindings() {
     id: `cashhole-${i}`,
     kind: "cash_hole",
     severity: "high",
-    title: "Your budget runs out of money",
-    detail: `Between ${h.start} and ${h.end} your projected balance goes negative, bottoming out at ${money(h.lowest)} on ${h.lowestDate}. Something needs to move before then.`,
+    title: T("find.budgetRunsOut"),
+    detail: T("find.budgetRunsOutDetail", { start: h.start, end: h.end, lowest: money(h.lowest), lowestDate: h.lowestDate }),
     amount: h.lowest
   }));
 }
@@ -77,10 +78,10 @@ function savingsRateFindings(monthKey) {
     id: "savings-rate",
     kind: "savings_rate",
     severity,
-    title: `Savings rate: ${pct}% in ${fmtMonth(latest.month)}`,
+    title: T("find.savingsRate", { pct, month: fmtMonth(latest.month) }),
     detail: pct < 0
-      ? `You spent ${money(latest.expenseTotal - latest.incomeTotal)} more than you earned this month.`
-      : `You kept ${money(latest.net)} of ${money(latest.incomeTotal)} earned.`,
+      ? T("find.spentMore", { amount: money(latest.expenseTotal - latest.incomeTotal) })
+      : T("find.keptOf", { kept: money(latest.net), earned: money(latest.incomeTotal) }),
     amount: latest.net,
     series: rates.map((r) => ({ month: r.month, rate: Math.round(r.rate * 100) }))
   }];
@@ -100,8 +101,8 @@ function categoryCreepFindings(monthKey) {
         id: `creep-${cat}`,
         kind: "category_creep",
         severity: growth > 0.75 ? "medium" : "low",
-        title: `${cat} is up ${Math.round(growth * 100)}% vs last month`,
-        detail: `${money(prior)} in ${fmtMonth(prev)} → ${money(amount)} so far in ${fmtMonth(monthKey)}.`,
+        title: T("find.categoryUp", { category: cat, pct: Math.round(growth * 100) }),
+        detail: T("find.categoryUpDetail", { prior: money(prior), prevMonth: fmtMonth(prev), amount: money(amount), month: fmtMonth(monthKey) }),
         amount: amount - prior,
         category: cat
       });
@@ -129,8 +130,8 @@ function unusualTransactionFindings(monthKey) {
         id: `unusual-${t.id}`,
         kind: "unusual",
         severity: "low",
-        title: `Unusually large ${t.category}: ${money(amt)}`,
-        detail: `Your typical ${t.category} is around ${money(med)}. This one on ${t.date} was ${(amt / med).toFixed(1)}× that.`,
+        title: T("find.unusuallyLarge", { category: t.category, amount: money(amt) }),
+        detail: T("find.unusuallyLargeDetail", { category: t.category, median: money(med), date: t.date, times: (amt / med).toFixed(1) }),
         amount: amt,
         category: t.category
       });
@@ -143,9 +144,9 @@ function goalPaceFindings() {
   const out = [];
   const monthlyNet = averageMonthlyNet();
   const goals = [
-    { key: "marriage", label: "Marriage", target: db.data.goals.marriage.reserveAnnualUSD * effectiveRate(db.data.goals.marriage.fxRate), saved: db.data.goals.marriage.savedSoFar },
-    { key: "home", label: "Home (initial payment)", target: cheapestHomeInitial(), saved: db.data.goals.home.savedSoFar },
-    { key: "umrah", label: "Umrah", target: umrahTotal(), saved: db.data.goals.umrah.savedSoFar }
+    { key: "marriage", label: T("goals.marriage"), target: db.data.goals.marriage.reserveAnnualUSD * effectiveRate(db.data.goals.marriage.fxRate), saved: db.data.goals.marriage.savedSoFar },
+    { key: "home", label: T("find.homeInitial"), target: cheapestHomeInitial(), saved: db.data.goals.home.savedSoFar },
+    { key: "umrah", label: T("goals.umrah"), target: umrahTotal(), saved: db.data.goals.umrah.savedSoFar }
   ];
   for (const g of goals) {
     if (!g.target || g.target <= 0) continue;
@@ -155,8 +156,8 @@ function goalPaceFindings() {
         id: `goal-${g.key}`,
         kind: "goal",
         severity: "low",
-        title: `${g.label} is fully funded`,
-        detail: `You've set aside ${money(g.saved)} against a ${money(g.target)} target.`,
+        title: T("find.fullyFunded", { goal: g.label }),
+        detail: T("find.fullyFundedDetail", { saved: money(g.saved), target: money(g.target) }),
         amount: g.saved
       });
       continue;
@@ -167,8 +168,8 @@ function goalPaceFindings() {
         id: `goal-${g.key}`,
         kind: "goal",
         severity: months > 60 ? "medium" : "low",
-        title: `${g.label}: ~${months} months at your current pace`,
-        detail: `${money(remaining)} still needed. You're averaging about ${money(monthlyNet)}/month across your logged months, which lands this around ${fmtMonth(addMonths(todayStr().slice(0, 7), months))} if nothing changes.`,
+        title: T("find.monthsAtPace", { goal: g.label, months }),
+        detail: T("find.monthsAtPaceDetail", { remaining: money(remaining), monthly: money(monthlyNet), eta: fmtMonth(addMonths(todayStr().slice(0, 7), months)) }),
         amount: remaining,
         goal: g.key
       });
@@ -177,8 +178,8 @@ function goalPaceFindings() {
         id: `goal-${g.key}`,
         kind: "goal",
         severity: "medium",
-        title: `${g.label} isn't moving`,
-        detail: `${money(remaining)} still needed, but you aren't netting a surplus right now, so there's nothing to put toward it.`,
+        title: T("find.notMoving", { goal: g.label }),
+        detail: T("find.notMovingDetail", { remaining: money(remaining) }),
         amount: remaining,
         goal: g.key
       });
@@ -205,8 +206,8 @@ function recurringSuggestionFindings() {
       id: `recurring-${key}`,
       kind: "recurring_suggestion",
       severity: "low",
-      title: `Make "${category}" recurring?`,
-      detail: `You've logged ${money(Math.abs(items[0].amount))} for ${category} in ${months.size} different months. Setting it up as recurring means you stop typing it.`,
+      title: T("find.makeRecurring", { category }),
+      detail: T("find.makeRecurringDetail", { amount: money(Math.abs(items[0].amount)), category, months: months.size }),
       amount: items[0].amount,
       category,
       suggestedRecurring: { category, amount: items[0].amount, dayOfMonth: Number(items[items.length - 1].date.slice(8, 10)) }
@@ -224,8 +225,8 @@ function staleLogFindings(today) {
     id: "stale-log",
     kind: "stale",
     severity: gap > 7 ? "medium" : "low",
-    title: `No entries for ${gap} days`,
-    detail: `Your last logged transaction was ${last}. The numbers drift out of date fast when logging stops.`,
+    title: T("find.noEntries", { days: gap }),
+    detail: T("find.noEntriesDetail", { last }),
     amount: null
   }];
 }

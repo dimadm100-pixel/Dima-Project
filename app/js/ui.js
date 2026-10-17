@@ -1,5 +1,6 @@
 import { el } from "./utils.js";
 import { db } from "./db.js";
+import { t as T } from "./i18n.js";
 
 let datalistSeq = 0;
 
@@ -35,16 +36,16 @@ export function closeSheet() {
   document.body.style.overflow = "";
 }
 
-export function confirmAction(message, onConfirm) {
+export function confirmAction(message, onConfirm, confirmLabel = null) {
   const wrap = el("div", {});
   wrap.appendChild(el("p", { style: "color: var(--text-dim); font-size: 14px; margin-bottom: 20px;" }, message));
   const row = el("div", { style: "display:flex; gap:10px;" });
-  const cancelBtn = el("button", { class: "btn secondary", onClick: () => closeSheet() }, "Cancel");
-  const confirmBtn = el("button", { class: "btn danger", onClick: () => { closeSheet(); onConfirm(); } }, "Delete");
+  const cancelBtn = el("button", { class: "btn secondary", onClick: () => closeSheet() }, T("common.cancel"));
+  const confirmBtn = el("button", { class: "btn danger", onClick: () => { closeSheet(); onConfirm(); } }, confirmLabel || T("common.delete"));
   row.appendChild(cancelBtn);
   row.appendChild(confirmBtn);
   wrap.appendChild(row);
-  openSheet("Are you sure?", wrap);
+  openSheet(T("common.areYouSure"), wrap);
 }
 
 export function field(labelText, inputEl) {
@@ -60,7 +61,7 @@ export function categoryField(labelText, kind, value = "") {
   const listId = `cat-list-${++datalistSeq}`;
   const wrap = el("div", { class: "field" });
   wrap.appendChild(el("label", {}, labelText));
-  const input = el("input", { type: "text", value, list: listId, placeholder: "e.g. food, salary, rent", autocomplete: "off" });
+  const input = el("input", { type: "text", value, list: listId, placeholder: T("common.categoryPlaceholder"), autocomplete: "off" });
   const datalist = el("datalist", { id: listId });
   for (const cat of db.categoryFrequency(kind)) {
     datalist.appendChild(el("option", { value: cat }));

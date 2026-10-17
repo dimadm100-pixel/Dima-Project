@@ -4,6 +4,7 @@ import { openSheet, closeSheet, confirmAction, field, numberInput, dateInput, te
 import { getApiKey, setApiKey, hasApiKey, getModel, setModel, MODELS } from "../ai.js";
 import { addMonths as addMonthKey } from "../utils.js";
 import { openOpeningEditor } from "./cashPosition.js";
+import { t as T, LANGS, getLang, setLang } from "../i18n.js";
 
 function openRecurringEditor(id, onDone) {
   const rec = id ? db.data.recurring.find((r) => r.id === id) : null;
@@ -11,29 +12,29 @@ function openRecurringEditor(id, onDone) {
   const form = document.createElement("div");
 
   const typeSelect = selectInput(
-    [{ value: "expense", label: "Expense" }, { value: "income", label: "Income" }],
+    [{ value: "expense", label: T("common.expense") }, { value: "income", label: T("common.income") }],
     { value: isIncome ? "income" : "expense" }
   );
-  const nameInput = textInput({ value: rec?.name || "", placeholder: "e.g. Rent" });
+  const nameInput = textInput({ value: rec?.name || "", placeholder: T("settings.recurringNamePlaceholder") });
   const amountInput = numberInput({ value: rec ? Math.abs(rec.amount) : "", placeholder: "0" });
-  const { wrap: catWrap, input: catInput, refresh } = categoryField("Category", isIncome ? "income" : "expense", rec?.category || "");
+  const { wrap: catWrap, input: catInput, refresh } = categoryField(T("common.category"), isIncome ? "income" : "expense", rec?.category || "");
   const dayInput = numberInput({ value: rec?.dayOfMonth ?? 1, min: "1", max: "28" });
   typeSelect.addEventListener("change", () => refresh(typeSelect.value));
 
-  form.appendChild(field("Type", typeSelect));
-  form.appendChild(field("Name", nameInput));
-  form.appendChild(field("Amount (UZS)", amountInput));
+  form.appendChild(field(T("common.type"), typeSelect));
+  form.appendChild(field(T("common.name"), nameInput));
+  form.appendChild(field(T("common.amount"), amountInput));
   form.appendChild(catWrap);
-  form.appendChild(field("Day of month (1–28)", dayInput));
+  form.appendChild(field(T("settings.dayOfMonth"), dayInput));
 
   const save = document.createElement("button");
   save.className = "btn";
-  save.textContent = rec ? "Save" : "Add recurring";
+  save.textContent = rec ? T("common.save") : T("settings.addRecurringShort");
   save.addEventListener("click", () => {
     const raw = parseFloat(amountInput.value);
-    if (!raw || raw <= 0) { showToast("Enter an amount greater than 0"); return; }
+    if (!raw || raw <= 0) { showToast(T("common.needAmount")); return; }
     const category = catInput.value.trim().toLowerCase();
-    if (!category) { showToast("Enter a category"); return; }
+    if (!category) { showToast(T("common.needCategory")); return; }
     const payload = {
       name: nameInput.value.trim() || category,
       category,
@@ -47,92 +48,106 @@ function openRecurringEditor(id, onDone) {
   });
   form.appendChild(save);
 
-  openSheet(rec ? "Edit recurring" : "Add recurring", form);
+  openSheet(rec ? T("settings.editRecurring") : T("settings.addRecurringShort"), form);
 }
 
 export function renderSettings(container) {
   container.innerHTML = `
-    <div class="page-title">Settings</div>
-    <p class="page-sub">Your data lives only on this device. Back it up regularly.</p>
+    <div class="page-title">${T("settings.title")}</div>
+    <p class="page-sub">${T("settings.sub")}</p>
 
     <div class="card">
-      <h2>Opening balance</h2>
-      <p style="color:var(--text-dim); font-size:12px; margin-top:-6px;">The starting point your Cash Position is built from — the sum of what was on each account the day you began.</p>
-      <div class="stat" style="border:none; padding:0; margin-bottom:12px;">
-        <div class="value">${fmtMoney(db.openingBalance())}</div>
-        <div class="sub">as of ${fmtDate(db.data.meta.openingDate)}</div>
+      <h2>${T("settings.languageTitle")}</h2>
+      <p style="color:var(--text-dim); font-size:12px; margin-top:-6px;">${T("settings.languageHint")}</p>
+      <div class="segmented" style="margin-top:12px;">
+        ${LANGS.map((l) => `<button data-set-lang="${l.code}" class="${l.code === getLang() ? "active" : ""}">${l.label}</button>`).join("")}
       </div>
-      <button class="btn secondary small" id="edit-opening">Edit opening balance</button>
     </div>
 
     <div class="card">
-      <h2>Recurring transactions</h2>
-      <p style="color:var(--text-dim); font-size:12px; margin-top:-6px;">Things you pay or earn every month. Set them once and generate them into your budget instead of typing them.</p>
+      <h2>${T("settings.openingTitle")}</h2>
+      <p style="color:var(--text-dim); font-size:12px; margin-top:-6px;">${T("settings.openingHint")}</p>
+      <div class="stat" style="border:none; padding:0; margin-bottom:12px;">
+        <div class="value">${fmtMoney(db.openingBalance())}</div>
+        <div class="sub">${T("settings.asOf", { date: fmtDate(db.data.meta.openingDate) })}</div>
+      </div>
+      <button class="btn secondary small" id="edit-opening">${T("settings.editOpening")}</button>
+    </div>
+
+    <div class="card">
+      <h2>${T("settings.recurringTitle")}</h2>
+      <p style="color:var(--text-dim); font-size:12px; margin-top:-6px;">${T("settings.recurringHint")}</p>
       ${db.data.recurring.length ? `
       <table>
         <tbody>
           ${db.data.recurring.map((r) => `
             <tr>
-              <td>${escapeHtml(r.name)}<br><span style="color:var(--text-dim); font-size:11px;">${escapeHtml(r.category)} · day ${r.dayOfMonth}${r.active ? "" : " · paused"}</span></td>
+              <td>${escapeHtml(r.name)}<br><span style="color:var(--text-dim); font-size:11px;">${escapeHtml(r.category)} · ${T("settings.dayOfMonthShort", { day: r.dayOfMonth })}${r.active ? "" : " · " + T("settings.paused")}</span></td>
               <td class="num ${r.amount >= 0 ? "amt-pos" : "amt-neg"}">${fmtMoney(r.amount)}</td>
               <td class="row-actions" style="justify-content:flex-end;">
-                <button class="mini-btn" data-edit-rec="${r.id}">Edit</button>
-                <button class="mini-btn danger" data-del-rec="${r.id}">Del</button>
+                <button class="mini-btn" data-edit-rec="${r.id}">${T("common.edit")}</button>
+                <button class="mini-btn danger" data-del-rec="${r.id}">${T("common.del")}</button>
               </td>
             </tr>`).join("")}
         </tbody>
-      </table>` : `<div class="empty-state">Nothing recurring set up yet.</div>`}
-      <button class="btn secondary small" id="add-recurring" style="margin-top:10px;">+ Add recurring</button>
-      ${db.data.recurring.length ? `<button class="btn secondary small" id="gen-recurring" style="margin-top:10px;">Generate into budget (12 months)</button>` : ""}
+      </table>` : `<div class="empty-state">${T("settings.noRecurring")}</div>`}
+      <button class="btn secondary small" id="add-recurring" style="margin-top:10px;">${T("settings.addRecurring")}</button>
+      ${db.data.recurring.length ? `<button class="btn secondary small" id="gen-recurring" style="margin-top:10px;">${T("settings.generate12")}</button>` : ""}
     </div>
 
     <div class="card">
-      <h2>AI features</h2>
+      <h2>${T("settings.aiTitle")}</h2>
       <p style="color:var(--text-dim); font-size:13px; margin-top:-6px;">
-        The Insights page and the Assistant use Claude. Everything else in the app works without this.
+        ${T("settings.aiHint")}
       </p>
       <div class="field">
-        <label>Anthropic API key</label>
+        <label>${T("settings.apiKey")}</label>
         <input type="password" id="api-key" placeholder="sk-ant-..." value="${escapeHtml(getApiKey())}" autocomplete="off">
       </div>
       <div class="field">
-        <label>Model</label>
+        <label>${T("settings.model")}</label>
         <select id="ai-model">
-          ${MODELS.map((m) => `<option value="${m.id}" ${m.id === getModel() ? "selected" : ""}>${escapeHtml(m.label)} — ${escapeHtml(m.note)}</option>`).join("")}
+          ${MODELS.map((m) => `<option value="${m.id}" ${m.id === getModel() ? "selected" : ""}>${escapeHtml(m.label)} — ${escapeHtml(T(m.note))}</option>`).join("")}
         </select>
       </div>
-      <button class="btn secondary small" id="save-ai">Save</button>
+      <button class="btn secondary small" id="save-ai">${T("common.save")}</button>
       <div class="divider"></div>
       <p style="color:var(--text-dim); font-size:11px; line-height:1.5;">
-        Get a key at <strong>console.anthropic.com</strong> → API keys. It needs credit on the account; expect a few cents per analysis.<br><br>
-        <strong>Be aware:</strong> the key is stored on this device only and is never committed to your repo — but it is used directly from the browser, so anyone with access to your unlocked phone could read it. Using AI features also sends your financial figures to Anthropic's API. Leave the key blank if you'd rather not.
-        ${hasApiKey() ? `<br><br><span style="color:var(--accent);">Key is set — AI features are on.</span>` : ""}
+        ${T("settings.aiKeyHelp")}<br><br>
+        ${T("settings.aiWarning")}
+        ${hasApiKey() ? `<br><br><span style="color:var(--accent);">${T("settings.aiOn")}</span>` : ""}
       </p>
     </div>
 
     <div class="card">
-      <h2>Backup</h2>
-      <p style="color:var(--text-dim); font-size:13px;">Export your data to a file you can keep safe, and re-import it any time (e.g. after reinstalling, or to move to a new phone).</p>
-      <button class="btn" id="export-btn">Export data (.json)</button>
+      <h2>${T("settings.backupTitle")}</h2>
+      <p style="color:var(--text-dim); font-size:13px;">${T("settings.backupHint")}</p>
+      <button class="btn" id="export-btn">${T("settings.export")}</button>
       <div style="height:10px;"></div>
       <label class="btn secondary" style="display:block; text-align:center; cursor:pointer;">
-        Import data (.json)
+        ${T("settings.import")}
         <input type="file" id="import-input" accept="application/json" style="display:none;">
       </label>
     </div>
 
     <div class="card">
-      <h2>Danger zone</h2>
-      <button class="btn danger" id="reset-btn">Reset all data</button>
+      <h2>${T("settings.dangerTitle")}</h2>
+      <button class="btn danger" id="reset-btn">${T("settings.reset")}</button>
     </div>
 
-    <p style="text-align:center; color:var(--text-dim); font-size:11px; margin-top:20px;">Dilmurod Finance Tracker · installed as a PWA · works offline</p>
+    <p style="text-align:center; color:var(--text-dim); font-size:11px; margin-top:20px;">${T("settings.footer")}</p>
   `;
+
+  // Changing the language redraws the whole app, this page included, so
+  // there is nothing to re-render here afterwards.
+  container.querySelectorAll("[data-set-lang]").forEach((btn) => {
+    btn.addEventListener("click", () => setLang(btn.dataset.setLang));
+  });
 
   container.querySelector("#save-ai").addEventListener("click", () => {
     setApiKey(container.querySelector("#api-key").value);
     setModel(container.querySelector("#ai-model").value);
-    showToast(hasApiKey() ? "AI features enabled" : "API key cleared");
+    showToast(hasApiKey() ? T("settings.aiEnabled") : T("settings.aiCleared"));
     renderSettings(container);
   });
 
@@ -141,7 +156,7 @@ export function renderSettings(container) {
     b.addEventListener("click", () => openRecurringEditor(b.dataset.editRec, () => renderSettings(container)));
   });
   container.querySelectorAll("[data-del-rec]").forEach((b) => {
-    b.addEventListener("click", () => confirmAction("Remove this recurring item?", () => {
+    b.addEventListener("click", () => confirmAction(T("settings.confirmRemoveRecurring"), () => {
       db.deleteRecurring(b.dataset.delRec);
       renderSettings(container);
     }));
@@ -153,7 +168,7 @@ export function renderSettings(container) {
     let mk = start;
     for (let i = 0; i < 12; i++) { months.push(mk); mk = addMonthKey(mk); }
     const added = db.generateRecurringBudget(months);
-    showToast(added ? `Added ${added} budget entries` : "Already up to date");
+    showToast(added ? T("settings.addedEntries", { n: added }) : T("settings.upToDate"));
     renderSettings(container);
   });
 
@@ -174,7 +189,7 @@ export function renderSettings(container) {
     a.click();
     a.remove();
     URL.revokeObjectURL(url);
-    showToast("Exported");
+    showToast(T("settings.exported"));
   });
 
   container.querySelector("#import-input").addEventListener("change", (e) => {
@@ -182,13 +197,13 @@ export function renderSettings(container) {
     if (!file) return;
     const reader = new FileReader();
     reader.onload = () => {
-      confirmAction("Importing will replace all current data on this device. Continue?", () => {
+      confirmAction(T("settings.confirmImport"), () => {
         try {
           db.importJSON(reader.result);
-          showToast("Data imported");
+          showToast(T("settings.imported"));
           window.location.hash = "#dashboard";
         } catch (err) {
-          showToast("Could not read that file");
+          showToast(T("settings.badFile"));
         }
       });
     };
@@ -197,9 +212,9 @@ export function renderSettings(container) {
   });
 
   container.querySelector("#reset-btn").addEventListener("click", () => {
-    confirmAction("This wipes all your logged transactions and restores the original seed data. Continue?", () => {
+    confirmAction(T("settings.confirmReset"), () => {
       db.resetToSeed();
-      showToast("Reset complete");
+      showToast(T("settings.resetDone"));
       window.location.hash = "#dashboard";
     });
   });

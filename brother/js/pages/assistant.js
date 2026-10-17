@@ -1,4 +1,5 @@
 import { db } from "../db.js";
+import { t as T } from "../i18n.js";
 import { buildAIContext } from "../insights.js";
 import { complete, textOf, toolUsesOf, hasApiKey, AIError } from "../ai.js";
 import { fmtMoney, fmtDate, todayStr, escapeHtml, el } from "../utils.js";
@@ -93,15 +94,15 @@ Your job:
 export function renderAssistant(container) {
   if (!hasApiKey()) {
     container.innerHTML = `
-      <div class="page-title">Assistant</div>
-      <p class="page-sub">Ask questions about your money, or have it build things for you.</p>
+      <div class="page-title">${T("nav.assistant")}</div>
+      <p class="page-sub">${T("assistant.subNoKey")}</p>
       <div class="card">
         <div class="empty-state" style="padding:24px 8px;">
-          The assistant needs an Anthropic API key.
+          ${T("assistant.needsKey")}
           <div style="height:6px;"></div>
-          <span style="font-size:12px;">Everything else in the app works without one.</span>
+          <span style="font-size:12px;">${T("assistant.worksWithout")}</span>
           <div style="height:14px;"></div>
-          <button class="btn secondary small" id="go-settings">Open Settings</button>
+          <button class="btn secondary small" id="go-settings">${T("insights.openSettings")}</button>
         </div>
       </div>`;
     container.querySelector("#go-settings").addEventListener("click", () => { window.location.hash = "#settings"; });
@@ -109,17 +110,17 @@ export function renderAssistant(container) {
   }
 
   container.innerHTML = `
-    <div class="page-title">Assistant</div>
-    <p class="page-sub">Ask anything, or tell it to build something. It proposes; you approve.</p>
+    <div class="page-title">${T("nav.assistant")}</div>
+    <p class="page-sub">${T("assistant.sub")}</p>
 
     ${conversation.length === 0 ? `
     <div class="card">
-      <h2>Try asking</h2>
+      <h2>${T("assistant.tryAsking")}</h2>
       <div class="chip-row" id="suggestions">
-        <button class="chip" data-q="Build me a realistic budget for the next 12 months based on what I actually earn and spend.">Build next year's budget</button>
-        <button class="chip" data-q="Where is my money leaking? Give me the three biggest specific cuts I could make.">Find my money leaks</button>
-        <button class="chip" data-q="When can I realistically afford the marriage goal, and what would have to change to make it sooner?">When can I afford marriage?</button>
-        <button class="chip" data-q="Set up recurring entries for everything I pay every month.">Set up my recurring bills</button>
+        <button class="chip" data-q="Build me a realistic budget for the next 12 months based on what I actually earn and spend.">${T("assistant.chipBudget")}</button>
+        <button class="chip" data-q="Where is my money leaking? Give me the three biggest specific cuts I could make.">${T("assistant.chipLeaks")}</button>
+        <button class="chip" data-q="When can I realistically afford the marriage goal, and what would have to change to make it sooner?">${T("assistant.chipMarriage")}</button>
+        <button class="chip" data-q="Set up recurring entries for everything I pay every month.">${T("assistant.chipBills")}</button>
       </div>
     </div>` : ""}
 
@@ -128,10 +129,10 @@ export function renderAssistant(container) {
 
     <div class="card">
       <div class="field" style="margin-bottom:8px;">
-        <textarea id="prompt-input" rows="3" placeholder="Ask about your finances, or describe what you want built…"></textarea>
+        <textarea id="prompt-input" rows="3" placeholder="${T("assistant.placeholder")}"></textarea>
       </div>
-      <button class="btn" id="send-btn">Ask</button>
-      ${conversation.length ? `<button class="btn secondary small" id="clear-btn" style="margin-top:8px;">Clear conversation</button>` : ""}
+      <button class="btn" id="send-btn">${T("assistant.ask")}</button>
+      ${conversation.length ? `<button class="btn secondary small" id="clear-btn" style="margin-top:8px;">${T("assistant.clear")}</button>` : ""}
     </div>
   `;
 
@@ -186,12 +187,12 @@ function drawProposal(container) {
 
   slot.innerHTML = `
     <div class="card" style="border-color:var(--accent);">
-      <h2>Proposed changes</h2>
+      <h2>${T("assistant.proposedChanges")}</h2>
       <p style="font-size:13px; color:var(--text-dim); margin-top:-6px;">${escapeHtml(summary)}</p>
       <div class="divider"></div>
       <div style="font-size:13px; margin-bottom:10px;">${grouped.map((g) => `<div style="margin-bottom:4px;">• ${escapeHtml(g)}</div>`).join("")}</div>
       <details style="margin-bottom:12px;">
-        <summary style="font-size:12px; color:var(--text-dim); cursor:pointer;">See all ${operations.length} change${operations.length === 1 ? "" : "s"}</summary>
+        <summary style="font-size:12px; color:var(--text-dim); cursor:pointer;">${T("assistant.seeAll", { n: operations.length })}</summary>
         <table style="margin-top:10px;">
           <tbody>
             ${operations.slice(0, 200).map((op) => `
@@ -200,11 +201,11 @@ function drawProposal(container) {
               </tr>`).join("")}
           </tbody>
         </table>
-        ${operations.length > 200 ? `<p style="font-size:11px; color:var(--text-dim);">…and ${operations.length - 200} more.</p>` : ""}
+        ${operations.length > 200 ? `<p style="font-size:11px; color:var(--text-dim);">${T("planner.andMore", { n: operations.length - 200 })}</p>` : ""}
       </details>
       <div style="display:flex; gap:10px;">
-        <button class="btn secondary" id="discard-proposal">Discard</button>
-        <button class="btn" id="apply-proposal">Apply ${operations.length} change${operations.length === 1 ? "" : "s"}</button>
+        <button class="btn secondary" id="discard-proposal">${T("assistant.discard")}</button>
+        <button class="btn" id="apply-proposal">${T("planner.applyN", { n: operations.length })}</button>
       </div>
     </div>
   `;
@@ -212,7 +213,7 @@ function drawProposal(container) {
   slot.querySelector("#discard-proposal").addEventListener("click", () => {
     pendingProposal = null;
     drawProposal(container);
-    showToast("Proposal discarded");
+    showToast(T("assistant.proposalDiscarded"));
   });
 
   slot.querySelector("#apply-proposal").addEventListener("click", () => {
@@ -221,7 +222,7 @@ function drawProposal(container) {
       const n = db.applyProposal(ops);
       pendingProposal = null;
       renderAssistant(container);
-      showToast(`Applied ${n} change${n === 1 ? "" : "s"}`);
+      showToast(T("planner.appliedChanges", { n }));
       offerUndo();
     });
   });
@@ -230,12 +231,12 @@ function drawProposal(container) {
 function confirmApply(count, onYes) {
   const wrap = el("div");
   wrap.appendChild(el("p", { style: "color: var(--text-dim); font-size: 14px; margin-bottom: 20px;" },
-    `This writes ${count} change${count === 1 ? "" : "s"} to your data. You can undo it right after.`));
+    T("assistant.writesChanges", { n: count })));
   const row = el("div", { style: "display:flex; gap:10px;" });
-  row.appendChild(el("button", { class: "btn secondary", onClick: closeSheet }, "Cancel"));
-  row.appendChild(el("button", { class: "btn", onClick: () => { closeSheet(); onYes(); } }, "Apply"));
+  row.appendChild(el("button", { class: "btn secondary", onClick: closeSheet }, T("common.cancel")));
+  row.appendChild(el("button", { class: "btn", onClick: () => { closeSheet(); onYes(); } }, T("assistant.apply")));
   wrap.appendChild(row);
-  openSheet("Apply changes?", wrap);
+  openSheet(T("assistant.applyChanges"), wrap);
 }
 
 function offerUndo() {
@@ -243,11 +244,11 @@ function offerUndo() {
     class: "toast",
     style: "top:auto; bottom:calc(150px + env(safe-area-inset-bottom,0px)); display:flex; gap:12px; align-items:center;"
   });
-  bar.appendChild(document.createTextNode("Changes applied"));
-  const undo = el("button", { class: "mini-btn", style: "border-color:var(--accent); color:var(--accent);" }, "Undo");
+  bar.appendChild(document.createTextNode(T("assistant.changesApplied")));
+  const undo = el("button", { class: "mini-btn", style: "border-color:var(--accent); color:var(--accent);" }, T("planner.undo"));
   undo.addEventListener("click", () => {
     if (db.undoLastProposal()) {
-      showToast("Reverted");
+      showToast(T("planner.reverted"));
       const view = document.getElementById("view");
       if (view) renderAssistant(view);
     }
@@ -272,14 +273,14 @@ async function send(container) {
   drawProposal(container);
 
   const status = el("div", { class: "card" }, [
-    el("div", { style: "font-size:13px; color:var(--text-dim);" }, "Thinking…")
+    el("div", { style: "font-size:13px; color:var(--text-dim);" }, T("insights.thinking"))
   ]);
   container.querySelector("#thread").appendChild(status);
 
   try {
     await runAgentLoop(container, status);
   } catch (e) {
-    const msg = e instanceof AIError ? e.message : "Something went wrong.";
+    const msg = e instanceof AIError ? e.message : T("assistant.somethingWrong");
     conversation.push({ role: "assistant", content: msg, display: `⚠️ ${msg}` });
   } finally {
     busy = false;
@@ -355,10 +356,10 @@ async function runAgentLoop(container, status) {
 }
 
 function statusFor(name) {
-  if (name === "get_financial_data") return "Reading your finances…";
-  if (name === "search_transactions") return "Searching transactions…";
-  if (name === "propose_changes") return "Preparing changes…";
-  return "Working…";
+  if (name === "get_financial_data") return T("assistant.statusReading");
+  if (name === "search_transactions") return T("assistant.statusSearching");
+  if (name === "propose_changes") return T("assistant.statusPreparing");
+  return T("assistant.statusWorking");
 }
 
 function toolResult(id, content, isError = false) {
@@ -401,17 +402,17 @@ function validOp(op) {
 function describeOp(op) {
   switch (op.action) {
     case "add_budget":
-      return `Budget · ${fmtDate(op.date)} · ${op.category} · ${fmtMoney(op.amount)}`;
+      return `${T("op.budget")} · ${fmtDate(op.date)} · ${op.category} · ${fmtMoney(op.amount)}`;
     case "delete_budget": {
       const item = db.data.budget.find((b) => b.id === op.id);
-      return item ? `Remove budget · ${fmtDate(item.date)} · ${item.category} · ${fmtMoney(item.amount)}` : `Remove budget item ${op.id}`;
+      return item ? `${T("op.removeBudget")} · ${fmtDate(item.date)} · ${item.category} · ${fmtMoney(item.amount)}` : `${T("op.removeBudget")} ${op.id}`;
     }
     case "add_transaction":
-      return `Transaction · ${fmtDate(op.date)} · ${op.category} · ${fmtMoney(op.amount)}`;
+      return `${T("op.transaction")} · ${fmtDate(op.date)} · ${op.category} · ${fmtMoney(op.amount)}`;
     case "add_recurring":
-      return `Recurring · ${op.name || op.category} · ${fmtMoney(op.amount)} on day ${op.dayOfMonth || 1}`;
+      return `${T("op.recurring")} · ${op.name || op.category} · ${T("op.onDay", { amount: fmtMoney(op.amount), day: op.dayOfMonth || 1 })}`;
     case "set_goal_saved":
-      return `Set ${op.goal} saved to ${fmtMoney(op.amount)}`;
+      return T("op.setGoalSaved", { goal: op.goal, amount: fmtMoney(op.amount) });
     default:
       return op.action;
   }
@@ -425,10 +426,10 @@ function summarizeOps(ops) {
     if (op.action === "add_budget") budgetTotal += Number(op.amount) || 0;
   }
   const out = [];
-  if (counts.add_budget) out.push(`Add ${counts.add_budget} budget entries (net ${fmtMoney(budgetTotal)})`);
-  if (counts.delete_budget) out.push(`Remove ${counts.delete_budget} budget entries`);
-  if (counts.add_transaction) out.push(`Add ${counts.add_transaction} transactions`);
-  if (counts.add_recurring) out.push(`Add ${counts.add_recurring} recurring items`);
-  if (counts.set_goal_saved) out.push(`Update ${counts.set_goal_saved} goal balance(s)`);
+  if (counts.add_budget) out.push(T("op.addBudgetN", { n: counts.add_budget, net: fmtMoney(budgetTotal) }));
+  if (counts.delete_budget) out.push(T("op.removeBudgetN", { n: counts.delete_budget }));
+  if (counts.add_transaction) out.push(T("op.addTransactionsN", { n: counts.add_transaction }));
+  if (counts.add_recurring) out.push(T("op.addRecurringN", { n: counts.add_recurring }));
+  if (counts.set_goal_saved) out.push(T("op.updateGoalsN", { n: counts.set_goal_saved }));
   return out;
 }

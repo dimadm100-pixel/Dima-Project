@@ -1,22 +1,23 @@
 import { db } from "../db.js";
+import { t as T } from "../i18n.js";
 import { fmtMoney, escapeHtml } from "../utils.js";
 import { openSheet, closeSheet, confirmAction, field, numberInput, textInput, showToast } from "../ui.js";
 import { effectiveRate, fxState } from "../fx.js";
 
 const TABS = [
-  { key: "marriage", label: "Marriage" },
-  { key: "home", label: "Home" },
-  { key: "umrah", label: "Umrah" }
+  { key: "marriage", label: "goals.marriage" },
+  { key: "home", label: "goals.home" },
+  { key: "umrah", label: "goals.umrah" }
 ];
 
 export function renderGoals(container, subroute) {
   const active = TABS.some((t) => t.key === subroute) ? subroute : "marriage";
 
   container.innerHTML = `
-    <div class="page-title">Goals</div>
-    <p class="page-sub">The big three you're planning toward.</p>
+    <div class="page-title">${T("nav.goals")}</div>
+    <p class="page-sub">${T("goals.sub")}</p>
     <div class="tabs" id="goal-tabs">
-      ${TABS.map((t) => `<button class="${t.key === active ? "active" : ""}" data-tab="${t.key}">${t.label}</button>`).join("")}
+      ${TABS.map((tab) => `<button class="${tab.key === active ? "active" : ""}" data-tab="${tab.key}">${T(tab.label)}</button>`).join("")}
     </div>
     <div id="goal-body"></div>
   `;
@@ -44,25 +45,25 @@ function renderMarriage(body, container) {
 
   body.innerHTML = `
     <div class="card">
-      <h2>Reserve fund progress</h2>
+      <h2>${T("goals.reserveProgress")}</h2>
       <div class="progress-bar"><div class="fill" style="width:${pct}%"></div></div>
-      <p style="font-size:12px; color:var(--text-dim); margin-top:8px;">${fmtMoney(g.savedSoFar)} saved of ${fmtMoney(reserveAnnualUZS)} target (${pct}%)</p>
+      <p style="font-size:12px; color:var(--text-dim); margin-top:8px;">${T("goals.savedOfTarget", { saved: fmtMoney(g.savedSoFar), target: fmtMoney(reserveAnnualUZS), pct })}</p>
       <p style="font-size:11px; color:${usingLive ? "var(--accent-2)" : "var(--text-dim)"}; margin-top:4px;">
-        $${g.reserveAnnualUSD.toLocaleString("en-US")} at ${Math.round(rate).toLocaleString("en-US")} UZS/USD
-        ${usingLive ? "· live CBU rate" : "· your fixed rate"}
+        ${T("goals.atRate", { usd: g.reserveAnnualUSD.toLocaleString("en-US"), rate: Math.round(rate).toLocaleString("en-US") })}
+        ${usingLive ? "· " + T("goals.liveRate") : "· " + T("goals.fixedRate")}
       </p>
-      <button class="btn secondary small" id="edit-saved" style="margin-top:8px;">Update saved amount</button>
+      <button class="btn secondary small" id="edit-saved" style="margin-top:8px;">${T("goals.updateSaved")}</button>
     </div>
 
     <div class="grid-2">
-      <div class="stat"><div class="label">Monthly cost</div><div class="value">${fmtMoney(monthlyUZS)}</div></div>
-      <div class="stat"><div class="label">Annual cost</div><div class="value">${fmtMoney(annualUZS)}</div></div>
-      <div class="stat"><div class="label">Reserve target</div><div class="value">${fmtMoney(reserveAnnualUZS)}</div></div>
-      <div class="stat"><div class="label">Target monthly income</div><div class="value">${fmtMoney(targetMonthlyUZS)}</div></div>
+      <div class="stat"><div class="label">${T("goals.monthlyCost")}</div><div class="value">${fmtMoney(monthlyUZS)}</div></div>
+      <div class="stat"><div class="label">${T("goals.annualCost")}</div><div class="value">${fmtMoney(annualUZS)}</div></div>
+      <div class="stat"><div class="label">${T("goals.reserveTarget")}</div><div class="value">${fmtMoney(reserveAnnualUZS)}</div></div>
+      <div class="stat"><div class="label">${T("goals.targetMonthlyIncome")}</div><div class="value">${fmtMoney(targetMonthlyUZS)}</div></div>
     </div>
 
     <div class="card">
-      <h2>Budget breakdown</h2>
+      <h2>${T("goals.budgetBreakdown")}</h2>
       <table>
         <tbody>
           ${g.rows.map((r) => `
@@ -70,8 +71,8 @@ function renderMarriage(body, container) {
               <td>${escapeHtml(r.element)}<br><span style="color:var(--text-dim); font-size:11px;">${escapeHtml(r.type)}</span></td>
               <td class="num">${fmtMoney(r.costUZS)}</td>
               <td class="row-actions" style="justify-content:flex-end;">
-                <button class="mini-btn" data-edit-row="${r.id}">Edit</button>
-                <button class="mini-btn danger" data-del-row="${r.id}">Del</button>
+                <button class="mini-btn" data-edit-row="${r.id}">${T("common.edit")}</button>
+                <button class="mini-btn danger" data-del-row="${r.id}">${T("common.del")}</button>
               </td>
             </tr>`).join("")}
         </tbody>
@@ -80,10 +81,10 @@ function renderMarriage(body, container) {
     </div>
 
     <div class="card">
-      <h2>Settings</h2>
-      <div class="field"><label>FX rate (UZS per USD)</label><input type="number" id="fx-rate" value="${g.fxRate}"></div>
-      <div class="field"><label>Reserve target (USD)</label><input type="number" id="reserve-usd" value="${g.reserveAnnualUSD}"></div>
-      <button class="btn secondary small" id="save-settings">Save settings</button>
+      <h2>${T("nav.settings")}</h2>
+      <div class="field"><label>${T("goals.fxRate")}</label><input type="number" id="fx-rate" value="${g.fxRate}"></div>
+      <div class="field"><label>${T("goals.reserveTargetUsd")}</label><input type="number" id="reserve-usd" value="${g.reserveAnnualUSD}"></div>
+      <button class="btn secondary small" id="save-settings">${T("goals.saveSettings")}</button>
     </div>
   `;
 
@@ -93,13 +94,13 @@ function renderMarriage(body, container) {
     btn.addEventListener("click", () => editMarriageRow(btn.dataset.editRow, () => renderGoals(container, "marriage")));
   });
   body.querySelectorAll("[data-del-row]").forEach((btn) => {
-    btn.addEventListener("click", () => confirmAction("Remove this line item?", () => { db.deleteMarriageRow(btn.dataset.delRow); renderGoals(container, "marriage"); }));
+    btn.addEventListener("click", () => confirmAction(T("goals.confirmRemoveRow"), () => { db.deleteMarriageRow(btn.dataset.delRow); renderGoals(container, "marriage"); }));
   });
   body.querySelector("#save-settings").addEventListener("click", () => {
     const fx = parseFloat(body.querySelector("#fx-rate").value) || g.fxRate;
     const res = parseFloat(body.querySelector("#reserve-usd").value) || 0;
     db.updateGoalField("marriage", { fxRate: fx, reserveAnnualUSD: res });
-    showToast("Saved");
+    showToast(T("common.saved"));
     renderGoals(container, "marriage");
   });
 }
@@ -108,26 +109,26 @@ function editMarriageRow(id, onDone) {
   const g = db.data.goals.marriage;
   const row = id ? g.rows.find((r) => r.id === id) : null;
   const form = document.createElement("div");
-  const typeInput = textInput({ value: row?.type || "Expense" });
+  const typeInput = textInput({ value: row?.type || T("common.expense") });
   const elementInput = textInput({ value: row?.element || "" });
   const costInput = numberInput({ value: row?.costUZS ?? "" });
-  form.appendChild(field("Type", typeInput));
-  form.appendChild(field("Description", elementInput));
-  form.appendChild(field("Monthly cost (UZS)", costInput));
+  form.appendChild(field(T("common.type"), typeInput));
+  form.appendChild(field(T("goals.description"), elementInput));
+  form.appendChild(field(T("goals.monthlyCostAmount"), costInput));
   const btn = document.createElement("button");
   btn.className = "btn";
-  btn.textContent = row ? "Save" : "Add";
+  btn.textContent = row ? T("common.save") : T("common.add");
   btn.addEventListener("click", () => {
-    if (!elementInput.value.trim()) { showToast("Enter a description"); return; }
+    if (!elementInput.value.trim()) { showToast(T("goals.needDescription")); return; }
     const costUZS = parseFloat(costInput.value) || 0;
-    const payload = { type: typeInput.value.trim() || "Expense", element: elementInput.value.trim(), units: 1, costUZS, costUSD: costUZS / g.fxRate };
+    const payload = { type: typeInput.value.trim() || T("common.expense"), element: elementInput.value.trim(), units: 1, costUZS, costUSD: costUZS / g.fxRate };
     if (row) db.updateMarriageRow(row.id, payload);
     else db.addMarriageRow(payload);
     closeSheet();
     onDone();
   });
   form.appendChild(btn);
-  openSheet(row ? "Edit line item" : "Add line item", form);
+  openSheet(row ? T("goals.editRow") : T("goals.addRow"), form);
 }
 
 // ---------------- Home ----------------
@@ -144,23 +145,23 @@ function renderHome(body, container) {
       <div class="card">
         <h2>${escapeHtml(v.name)}</h2>
         <div class="grid-2">
-          <div class="stat"><div class="label">Total price</div><div class="value">${fmtMoney(totalPrice)}</div></div>
-          <div class="stat"><div class="label">Initial payment (${Math.round(v.initialPct * 100)}%)</div><div class="value">${fmtMoney(initial)}</div></div>
-          <div class="stat"><div class="label">Monthly installment</div><div class="value">${fmtMoney(monthlyPayment)}</div></div>
-          <div class="stat"><div class="label">Over</div><div class="value">${v.months} mo</div></div>
+          <div class="stat"><div class="label">${T("goals.totalPrice")}</div><div class="value">${fmtMoney(totalPrice)}</div></div>
+          <div class="stat"><div class="label">${T("goals.initialPayment", { pct: Math.round(v.initialPct * 100) })}</div><div class="value">${fmtMoney(initial)}</div></div>
+          <div class="stat"><div class="label">${T("goals.monthlyInstallment")}</div><div class="value">${fmtMoney(monthlyPayment)}</div></div>
+          <div class="stat"><div class="label">${T("goals.over")}</div><div class="value">${T("goals.months", { n: v.months })}</div></div>
         </div>
         <div class="progress-bar" style="margin-top:12px;"><div class="fill" style="width:${p}%"></div></div>
-        <p style="font-size:12px; color:var(--text-dim); margin-top:8px;">${p}% of initial payment saved</p>
-        <button class="btn secondary small" data-edit-variant="${i}" style="margin-top:10px;">Edit variant</button>
+        <p style="font-size:12px; color:var(--text-dim); margin-top:8px;">${T("goals.pctOfInitialSaved", { pct: p })}</p>
+        <button class="btn secondary small" data-edit-variant="${i}" style="margin-top:10px;">${T("goals.editVariant")}</button>
       </div>
     `;
   }).join("");
 
   body.innerHTML = `
     <div class="card">
-      <h2>Saved so far</h2>
+      <h2>${T("goals.savedSoFar")}</h2>
       <div class="stat" style="border:none; padding:0;"><div class="value">${fmtMoney(g.savedSoFar)}</div></div>
-      <button class="btn secondary small" id="edit-saved" style="margin-top:10px;">Update saved amount</button>
+      <button class="btn secondary small" id="edit-saved" style="margin-top:10px;">${T("goals.updateSaved")}</button>
     </div>
     ${cards}
   `;
@@ -180,15 +181,15 @@ function editHomeVariant(index, onDone) {
   const initialInput = numberInput({ value: Math.round(v.initialPct * 100) });
   const markupInput = numberInput({ value: Math.round(v.markupPct * 100) });
   const monthsInput = numberInput({ value: v.months });
-  form.appendChild(field("Name", nameInput));
-  form.appendChild(field("Square meters", sqmInput));
-  form.appendChild(field("Price per sqm (million UZS)", priceInput));
-  form.appendChild(field("Initial payment %", initialInput));
-  form.appendChild(field("Markup %", markupInput));
-  form.appendChild(field("Installment months", monthsInput));
+  form.appendChild(field(T("common.name"), nameInput));
+  form.appendChild(field(T("goals.sqm"), sqmInput));
+  form.appendChild(field(T("goals.pricePerSqm"), priceInput));
+  form.appendChild(field(T("goals.initialPct"), initialInput));
+  form.appendChild(field(T("goals.markupPct"), markupInput));
+  form.appendChild(field(T("goals.installmentMonths"), monthsInput));
   const btn = document.createElement("button");
   btn.className = "btn";
-  btn.textContent = "Save";
+  btn.textContent = T("common.save");
   btn.addEventListener("click", () => {
     db.updateHomeVariant(index, {
       name: nameInput.value.trim(),
@@ -202,7 +203,7 @@ function editHomeVariant(index, onDone) {
     onDone();
   });
   form.appendChild(btn);
-  openSheet("Edit variant", form);
+  openSheet(T("goals.editVariant"), form);
 }
 
 // ---------------- Umrah ----------------
@@ -215,26 +216,26 @@ function renderUmrah(body, container) {
 
   body.innerHTML = `
     <div class="card">
-      <h2>Progress</h2>
+      <h2>${T("goals.progress")}</h2>
       <div class="progress-bar"><div class="fill" style="width:${pct}%"></div></div>
-      <p style="font-size:12px; color:var(--text-dim); margin-top:8px;">${fmtMoney(g.savedSoFar)} saved of ${fmtMoney(totalUZS)} (${pct}%)</p>
-      <button class="btn secondary small" id="edit-saved" style="margin-top:8px;">Update saved amount</button>
+      <p style="font-size:12px; color:var(--text-dim); margin-top:8px;">${T("goals.savedOf", { saved: fmtMoney(g.savedSoFar), total: fmtMoney(totalUZS), pct })}</p>
+      <button class="btn secondary small" id="edit-saved" style="margin-top:8px;">${T("goals.updateSaved")}</button>
     </div>
 
     <div class="grid-2">
-      <div class="stat"><div class="label">Per person</div><div class="value">$${g.amountUSD}</div></div>
-      <div class="stat"><div class="label">People</div><div class="value">${g.people}</div></div>
-      <div class="stat"><div class="label">Buffer</div><div class="value">$${g.bufferUSD}</div></div>
-      <div class="stat"><div class="label">Total</div><div class="value">${fmtMoney(totalUZS)}</div></div>
+      <div class="stat"><div class="label">${T("goals.perPerson")}</div><div class="value">$${g.amountUSD}</div></div>
+      <div class="stat"><div class="label">${T("goals.people")}</div><div class="value">${g.people}</div></div>
+      <div class="stat"><div class="label">${T("goals.buffer")}</div><div class="value">$${g.bufferUSD}</div></div>
+      <div class="stat"><div class="label">${T("common.total")}</div><div class="value">${fmtMoney(totalUZS)}</div></div>
     </div>
 
     <div class="card">
-      <h2>Settings</h2>
-      <div class="field"><label>Amount per person (USD)</label><input type="number" id="amt" value="${g.amountUSD}"></div>
-      <div class="field"><label>Number of people</label><input type="number" id="people" value="${g.people}"></div>
-      <div class="field"><label>Buffer (USD)</label><input type="number" id="buffer" value="${g.bufferUSD}"></div>
-      <div class="field"><label>FX rate (UZS per USD)</label><input type="number" id="fx" value="${g.fxRate}"></div>
-      <button class="btn secondary small" id="save-settings">Save settings</button>
+      <h2>${T("nav.settings")}</h2>
+      <div class="field"><label>${T("goals.amountPerPerson")}</label><input type="number" id="amt" value="${g.amountUSD}"></div>
+      <div class="field"><label>${T("goals.numberOfPeople")}</label><input type="number" id="people" value="${g.people}"></div>
+      <div class="field"><label>${T("goals.bufferUsd")}</label><input type="number" id="buffer" value="${g.bufferUSD}"></div>
+      <div class="field"><label>${T("goals.fxRate")}</label><input type="number" id="fx" value="${g.fxRate}"></div>
+      <button class="btn secondary small" id="save-settings">${T("goals.saveSettings")}</button>
     </div>
   `;
 
@@ -246,7 +247,7 @@ function renderUmrah(body, container) {
       bufferUSD: parseFloat(body.querySelector("#buffer").value) || 0,
       fxRate: parseFloat(body.querySelector("#fx").value) || g.fxRate
     });
-    showToast("Saved");
+    showToast(T("common.saved"));
     renderGoals(container, "umrah");
   });
 }
@@ -255,15 +256,15 @@ function renderUmrah(body, container) {
 function editSavedAmount(goalKey, current, onDone) {
   const form = document.createElement("div");
   const input = numberInput({ value: current });
-  form.appendChild(field("Amount saved so far (UZS)", input));
+  form.appendChild(field(T("goals.amountSaved"), input));
   const btn = document.createElement("button");
   btn.className = "btn";
-  btn.textContent = "Save";
+  btn.textContent = T("common.save");
   btn.addEventListener("click", () => {
     db.updateGoalField(goalKey, { savedSoFar: parseFloat(input.value) || 0 });
     closeSheet();
     onDone();
   });
   form.appendChild(btn);
-  openSheet("Update saved amount", form);
+  openSheet(T("goals.updateSaved"), form);
 }

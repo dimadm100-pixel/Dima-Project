@@ -1,4 +1,5 @@
 import { db } from "../db.js";
+import { t as T } from "../i18n.js";
 import { fmtMoney, fmtMonth, todayStr } from "../utils.js";
 
 let selectedMonth = todayStr().slice(0, 7);
@@ -11,8 +12,8 @@ export function renderAccCashFlow(container) {
   const today = todayStr();
 
   container.innerHTML = `
-    <div class="page-title">Acc. Cash Flow</div>
-    <p class="page-sub">Accumulated cash balance, day by day — budgeted vs actual.</p>
+    <div class="page-title">${T("acc.title")}</div>
+    <p class="page-sub">${T("acc.sub")}</p>
 
     <div class="tabs" id="month-tabs">
       ${months.map((m) => `<button class="${m === selectedMonth ? "active" : ""}" data-month="${m}">${fmtMonth(m)}</button>`).join("")}
@@ -22,9 +23,9 @@ export function renderAccCashFlow(container) {
       <table>
         <thead>
           <tr>
-            <th>Date</th>
-            <th class="num">Budgeted Acc</th>
-            <th class="num">Actual Acc</th>
+            <th>${T("common.date")}</th>
+            <th class="num">${T("acc.budgetedAcc")}</th>
+            <th class="num">${T("acc.actualAcc")}</th>
           </tr>
         </thead>
         <tbody>
@@ -34,9 +35,9 @@ export function renderAccCashFlow(container) {
     </div>
 
     <div class="legend">
-      <div class="legend-item"><span class="legend-dot" style="background:var(--accent-2);"></span>Δ that day, budgeted</div>
-      <div class="legend-item"><span class="legend-dot" style="background:var(--accent);"></span>Δ that day, actual</div>
-      <div class="legend-item"><span class="legend-dot" style="background:var(--danger);"></span>Balance negative</div>
+      <div class="legend-item"><span class="legend-dot" style="background:var(--accent-2);"></span>${T("acc.legendBudget")}</div>
+      <div class="legend-item"><span class="legend-dot" style="background:var(--accent);"></span>${T("acc.legendActual")}</div>
+      <div class="legend-item"><span class="legend-dot" style="background:var(--danger);"></span>${T("acc.legendNegative")}</div>
     </div>
   `;
 
@@ -56,7 +57,7 @@ function rowHTML(r, today) {
     : `<span style="color:var(--text-dim);">—</span>`;
   return `
     <tr style="${isToday ? "background:var(--accent-fade);" : ""}">
-      <td>${day}${isToday ? ` <span class="badge">today</span>` : ""}</td>
+      <td>${day}${isToday ? ` <span class="badge">${T("common.today")}</span>` : ""}</td>
       <td class="num">${budgetCell}</td>
       <td class="num">${actualCell}</td>
     </tr>

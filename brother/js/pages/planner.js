@@ -1,4 +1,5 @@
 import { db } from "../db.js";
+import { t as T } from "../i18n.js";
 import {
   buildBudgetPlan, findLeaks, goalStatus, requiredMonthly,
   detectRecurring, averageMonthlySurplus
@@ -7,10 +8,10 @@ import { fmtMoney, fmtMoneyShort, fmtMonth, fmtDate, todayStr, addMonths, escape
 import { openSheet, closeSheet, showToast } from "../ui.js";
 
 const TABS = [
-  { key: "budget", label: "Build budget" },
-  { key: "leaks", label: "Find leaks" },
-  { key: "goals", label: "Goals" },
-  { key: "bills", label: "Bills" }
+  { key: "budget", label: "planner.tabBudget" },
+  { key: "leaks", label: "planner.tabLeaks" },
+  { key: "goals", label: "nav.goals" },
+  { key: "bills", label: "planner.tabBills" }
 ];
 
 let activeTab = "budget";
@@ -18,10 +19,10 @@ let cuts = {}; // category -> percent to trim, for the what-if sliders
 
 export function renderPlanner(container) {
   container.innerHTML = `
-    <div class="page-title">Planner</div>
-    <p class="page-sub">Works out your numbers exactly. No account, no cost, works offline.</p>
+    <div class="page-title">${T("nav.planner")}</div>
+    <p class="page-sub">${T("planner.sub")}</p>
     <div class="tabs" id="planner-tabs">
-      ${TABS.map((t) => `<button class="${t.key === activeTab ? "active" : ""}" data-tab="${t.key}">${t.label}</button>`).join("")}
+      ${TABS.map((t) => `<button class="${t.key === activeTab ? "active" : ""}" data-tab="${t.key}">${T(t.label)}</button>`).join("")}
     </div>
     <div id="planner-body"></div>
   `;
@@ -65,10 +66,10 @@ function renderBudgetTab(body, container) {
 
   body.innerHTML = `
     <div class="card">
-      <h2>Your monthly plan</h2>
+      <h2>${T("planner.monthlyPlan")}</h2>
       <p style="color:var(--text-dim); font-size:12px; margin-top:-6px;">
         Starting figures are your median month — the middle one, so a single odd month doesn't skew things.
-        <strong style="color:var(--text);">Change anything here</strong> and it applies to every month generated.
+        ${T("planner.changeHint")}
       </p>
       <div id="pattern-rows">
         ${patterns.map((p) => `
@@ -80,7 +81,7 @@ function renderBudgetTab(body, container) {
             </div>
             <div style="display:flex; gap:8px;">
               <div style="flex:2;">
-                <label style="font-size:11px; color:var(--text-dim);">Amount / month</label>
+                <label style="font-size:11px; color:var(--text-dim);">${T("planner.amountPerMonth")}</label>
                 <input type="number" data-amount="${escapeHtml(p.category)}" value="${valueFor(p)}" step="10000">
               </div>
               <div style="flex:1;">
@@ -91,23 +92,23 @@ function renderBudgetTab(body, container) {
           </div>`).join("")}
       </div>
       <div style="display:flex; justify-content:space-between; align-items:center; margin-top:14px;">
-        <span style="font-size:13px; color:var(--text-dim);">Net per month</span>
+        <span style="font-size:13px; color:var(--text-dim);">${T("planner.netPerMonth")}</span>
         <strong id="net-preview" style="font-size:16px;"></strong>
       </div>
-      <button class="btn secondary small" id="reset-overrides" style="margin-top:12px;">Reset to my history</button>
+      <button class="btn secondary small" id="reset-overrides" style="margin-top:12px;">${T("planner.resetOverrides")}</button>
     </div>
 
     <div class="card">
-      <h2>Generate</h2>
+      <h2>${T("planner.generate")}</h2>
       <div class="field-row">
-        <div class="field"><label>Start month</label><input type="month" id="start-month" value="${defaultStart}"></div>
-        <div class="field"><label>How many months</label><input type="number" id="month-count" value="12" min="1" max="36"></div>
+        <div class="field"><label>${T("planner.startMonth")}</label><input type="month" id="start-month" value="${defaultStart}"></div>
+        <div class="field"><label>${T("planner.howManyMonths")}</label><input type="number" id="month-count" value="12" min="1" max="36"></div>
       </div>
       <label style="display:flex; gap:10px; align-items:flex-start; font-size:13px; color:var(--text-dim); margin-bottom:14px;">
         <input type="checkbox" id="replace-existing" style="width:auto; margin-top:2px;">
-        <span>Replace any budget already in those months (otherwise new entries are added alongside)</span>
+        <span>${T("planner.replaceExisting")}</span>
       </label>
-      <button class="btn" id="preview-budget">Preview budget</button>
+      <button class="btn" id="preview-budget">${T("planner.previewBudget")}</button>
     </div>
   `;
 
@@ -146,7 +147,7 @@ function renderBudgetTab(body, container) {
   body.querySelector("#reset-overrides").addEventListener("click", () => {
     overrides = {};
     renderPlanner(container);
-    showToast("Reset to your history");
+    showToast(T("planner.resetDone"));
   });
 
   updateNet();
@@ -157,11 +158,11 @@ function renderBudgetTab(body, container) {
     const replaceExisting = body.querySelector("#replace-existing").checked;
     const plan = buildBudgetPlan({ startMonth, monthCount, replaceExisting, overrides });
     if (!plan.operations.some((o) => o.action === "add_budget")) {
-      showToast("Nothing enabled to generate");
+      showToast(T("planner.nothingEnabled"));
       return;
     }
     showProposal(container, {
-      title: `Budget for ${fmtMonth(plan.months[0])} – ${fmtMonth(plan.months[plan.months.length - 1])}`,
+      title: T("planner.budgetFor", { from: fmtMonth(plan.months[0]), to: fmtMonth(plan.months[plan.months.length - 1]) }),
       summary: summarizePlan(plan),
       operations: plan.operations
     });
@@ -175,12 +176,12 @@ function summarizePlan(plan) {
   const expense = adds.filter((o) => o.amount < 0).reduce((s, o) => s + Math.abs(o.amount), 0);
   const perMonth = plan.months.length;
   const parts = [
-    `${adds.length} entries across ${perMonth} month${perMonth === 1 ? "" : "s"}`,
-    `income ${fmtMoney(income)}`,
-    `expenses ${fmtMoney(expense)}`,
-    `net ${fmtMoney(income - expense)}`
+    T("planner.entriesAcross", { n: adds.length, months: perMonth }),
+    T("planner.incomeIs", { amount: fmtMoney(income) }),
+    T("planner.expensesAre", { amount: fmtMoney(expense) }),
+    T("planner.netIs", { amount: fmtMoney(income - expense) })
   ];
-  if (dels.length) parts.push(`replaces ${dels.length} existing`);
+  if (dels.length) parts.push(T("planner.replacesN", { n: dels.length }));
   return parts.join(" · ");
 }
 
@@ -192,7 +193,7 @@ function renderLeaksTab(body, container) {
 
   if (!leaks.length) {
     body.innerHTML = `<div class="card"><div class="empty-state">
-      Not enough history yet to spot leaks. This needs at least two months of logged spending in the same category.
+      ${T("planner.notEnoughHistory")}
     </div></div>`;
     return;
   }
@@ -201,15 +202,15 @@ function renderLeaksTab(body, container) {
 
   body.innerHTML = `
     <div class="card hero-balance">
-      <div class="label">If every category hit its own best month</div>
+      <div class="label">${T("planner.bestMonthLabel")}</div>
       <div class="amount" style="color:var(--accent);">${fmtMoney(totalOpportunity)}</div>
-      <div class="sub" style="color:var(--text-dim); font-size:12px;">per month · ${fmtMoney(totalOpportunity * 12)} a year</div>
+      <div class="sub" style="color:var(--text-dim); font-size:12px;">${T("planner.perMonthPerYear", { year: fmtMoney(totalOpportunity * 12) })}</div>
     </div>
 
     <div class="card">
-      <h2>Where the room is</h2>
+      <h2>${T("planner.whereRoom")}</h2>
       <p style="color:var(--text-dim); font-size:12px; margin-top:-6px;">
-        These aren't invented targets. Each "good month" is a figure you actually hit at least once — so it's provably doable.
+        ${T("planner.roomHint")}
       </p>
       ${leaks.map((l) => `
         <div style="padding:12px 0; border-bottom:1px solid var(--border);">
@@ -218,16 +219,16 @@ function renderLeaksTab(body, container) {
             <div style="font-size:14px; font-weight:700; color:var(--accent);">${fmtMoney(l.monthlySaving)}/mo</div>
           </div>
           <div style="font-size:12px; color:var(--text-dim); margin-top:4px;">
-            Typical month ${fmtMoney(l.typicalMonth)} · your best ${fmtMoney(l.goodMonth)}
-            ${l.trend > 0.2 ? ` · <span style="color:var(--warn);">trending up ${Math.round(l.trend * 100)}%</span>` : ""}
+            ${T("planner.typicalBest", { typical: fmtMoney(l.typicalMonth), best: fmtMoney(l.goodMonth) })}
+            ${l.trend > 0.2 ? ` · <span style="color:var(--warn);">${T("planner.trendingUp", { pct: Math.round(l.trend * 100) })}</span>` : ""}
           </div>
         </div>
       `).join("")}
     </div>
 
     <div class="card">
-      <h2>What if you cut them?</h2>
-      <p style="color:var(--text-dim); font-size:12px; margin-top:-6px;">Drag to see what it does to your goals. Nothing is saved — this is just the maths.</p>
+      <h2>${T("planner.whatIfCut")}</h2>
+      <p style="color:var(--text-dim); font-size:12px; margin-top:-6px;">${T("planner.cutHint")}</p>
       <div id="sliders">
         ${leaks.slice(0, 6).map((l) => `
           <div style="margin-bottom:16px;">
@@ -276,17 +277,17 @@ function drawWhatIf(body) {
 
   slot.innerHTML = `
     <div style="font-size:13px; margin-bottom:10px;">
-      Frees up <strong style="color:var(--accent);">${fmtMoney(freed)}</strong> a month
-      ${freed > 0 ? `(${fmtMoney(freed * 12)} a year)` : ""}
+      ${T("planner.freesUp", { amount: fmtMoney(freed) })}
+      ${freed > 0 ? T("planner.aYear", { amount: fmtMoney(freed * 12) }) : ""}
     </div>
     <table>
-      <thead><tr><th>Goal</th><th class="num">Now</th><th class="num">After cuts</th></tr></thead>
+      <thead><tr><th>${T("planner.goal")}</th><th class="num">${T("planner.now")}</th><th class="num">${T("planner.afterCuts")}</th></tr></thead>
       <tbody>
         ${after.map((g, i) => {
           const b = before[i];
           const improved = g.months !== null && b.months !== null && g.months < b.months;
           return `<tr>
-            <td>${escapeHtml(g.label)}${g.done ? ` <span class="badge">done</span>` : ""}</td>
+            <td>${escapeHtml(g.label)}${g.done ? ` <span class="badge">${T("planner.done")}</span>` : ""}</td>
             <td class="num" style="font-size:12px; color:var(--text-dim);">${etaText(b)}</td>
             <td class="num" style="font-size:12px; ${improved ? "color:var(--accent); font-weight:700;" : ""}">${etaText(g)}</td>
           </tr>`;
@@ -297,8 +298,8 @@ function drawWhatIf(body) {
 }
 
 function etaText(g) {
-  if (g.done) return "reached";
-  if (g.months === null) return "never at this rate";
+  if (g.done) return T("planner.reached");
+  if (g.months === null) return T("planner.neverAtRate");
   return `${fmtMonth(g.eta)}`;
 }
 
@@ -311,10 +312,10 @@ function renderGoalsTab(body, container) {
 
   body.innerHTML = `
     <div class="card">
-      <h2>Your monthly surplus</h2>
+      <h2>${T("planner.monthlySurplus")}</h2>
       <div class="stat" style="border:none; padding:0;">
         <div class="value ${surplus >= 0 ? "pos" : "neg"}">${fmtMoney(surplus)}</div>
-        <div class="sub">averaged across the months you've logged</div>
+        <div class="sub">${T("planner.averagedAcross")}</div>
       </div>
     </div>
 
@@ -323,18 +324,18 @@ function renderGoalsTab(body, container) {
         <h2>${escapeHtml(g.label)}</h2>
         <div class="progress-bar"><div class="fill" style="width:${g.target > 0 ? Math.min(100, Math.round((g.saved / g.target) * 100)) : 0}%"></div></div>
         <p style="font-size:12px; color:var(--text-dim); margin-top:8px;">
-          ${fmtMoney(g.saved)} of ${fmtMoney(g.target)} · ${fmtMoney(g.remaining)} to go
+          ${T("planner.savedOfToGo", { saved: fmtMoney(g.saved), target: fmtMoney(g.target), remaining: fmtMoney(g.remaining) })}
         </p>
         <div style="font-size:13px; margin-top:6px;">
-          ${g.done ? `<span style="color:var(--accent);">Fully funded.</span>`
+          ${g.done ? `<span style="color:var(--accent);">${T("planner.fullyFunded")}</span>`
             : g.months === null
-              ? `<span style="color:var(--danger);">You have no surplus right now, so this isn't moving.</span>`
-              : `At ${fmtMoney(g.surplus)}/month this lands <strong>${fmtMonth(g.eta)}</strong> (${g.months} months).`}
+              ? `<span style="color:var(--danger);">${T("planner.noSurplus")}</span>`
+              : T("planner.landsAt", { amount: fmtMoney(g.surplus), month: fmtMonth(g.eta), n: g.months })}
         </div>
         ${!g.done ? `
         <div class="divider"></div>
         <div class="field">
-          <label>Want it by a certain month? Pick one:</label>
+          <label>${T("planner.wantItBy")}</label>
           <input type="month" data-goal-target="${g.key}" value="${defaultTarget}">
         </div>
         <div id="req-${g.key}" style="font-size:13px;"></div>` : ""}
@@ -348,10 +349,10 @@ function renderGoalsTab(body, container) {
       const req = requiredMonthly(key, input.value);
       const slot = body.querySelector(`#req-${key}`);
       if (!slot) return;
-      if (!req) { slot.innerHTML = `<span style="color:var(--danger);">Pick a month in the future.</span>`; return; }
+      if (!req) { slot.innerHTML = `<span style="color:var(--danger);">${T("planner.pickFutureMonth")}</span>`; return; }
       slot.innerHTML = req.gap > 0
-        ? `You'd need <strong>${fmtMoney(req.requiredPerMonth)}/month</strong> — that's <strong style="color:var(--danger);">${fmtMoney(req.gap)}</strong> more than you currently save. Check the Leaks tab for where it could come from.`
-        : `You'd need <strong>${fmtMoney(req.requiredPerMonth)}/month</strong>, and you're already saving ${fmtMoney(req.surplus)}. <span style="color:var(--accent);">On track.</span>`;
+        ? T("planner.needGap", { need: fmtMoney(req.requiredPerMonth), gap: fmtMoney(req.gap) })
+        : T("planner.needOnTrack", { need: fmtMoney(req.requiredPerMonth), saving: fmtMoney(req.surplus) });
     };
     input.addEventListener("change", update);
     update();
@@ -366,7 +367,7 @@ function renderBillsTab(body, container) {
 
   body.innerHTML = `
     <div class="card">
-      <h2>Already set up</h2>
+      <h2>${T("planner.alreadySetUp")}</h2>
       ${existing.length ? `
         <table><tbody>
           ${existing.map((r) => `
@@ -374,23 +375,23 @@ function renderBillsTab(body, container) {
               <td>${escapeHtml(r.name)}<br><span style="color:var(--text-dim); font-size:11px;">${escapeHtml(r.category)} · day ${r.dayOfMonth}</span></td>
               <td class="num ${r.amount >= 0 ? "amt-pos" : "amt-neg"}">${fmtMoney(r.amount)}</td>
             </tr>`).join("")}
-        </tbody></table>` : `<div class="empty-state">Nothing recurring yet.</div>`}
+        </tbody></table>` : `<div class="empty-state">${T("planner.nothingRecurring")}</div>`}
     </div>
 
     <div class="card">
-      <h2>Spotted in your history</h2>
-      <p style="color:var(--text-dim); font-size:12px; margin-top:-6px;">Same amount, same category, three or more separate months — almost certainly a bill.</p>
+      <h2>${T("planner.spotted")}</h2>
+      <p style="color:var(--text-dim); font-size:12px; margin-top:-6px;">${T("planner.spottedHint")}</p>
       ${detected.length ? `
         ${detected.map((d) => `
           <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 0; border-bottom:1px solid var(--border);">
             <div>
               <div style="font-size:14px;">${escapeHtml(d.category)}</div>
-              <div style="font-size:11px; color:var(--text-dim);">${fmtMoney(d.amount)} · seen in ${d.monthsSeen} months · usually day ${d.dayOfMonth}</div>
+              <div style="font-size:11px; color:var(--text-dim);">${T("planner.seenIn", { amount: fmtMoney(d.amount), months: d.monthsSeen, day: d.dayOfMonth })}</div>
             </div>
-            <button class="mini-btn" data-add-rec='${escapeHtml(JSON.stringify(d))}'>Add</button>
+            <button class="mini-btn" data-add-rec='${escapeHtml(JSON.stringify(d))}'>${T("common.add")}</button>
           </div>`).join("")}
-        <button class="btn secondary small" id="add-all-rec" style="margin-top:12px;">Add all ${detected.length}</button>
-      ` : `<div class="empty-state">Nothing new spotted.</div>`}
+        <button class="btn secondary small" id="add-all-rec" style="margin-top:12px;">${T("planner.addAll", { n: detected.length })}</button>
+      ` : `<div class="empty-state">${T("planner.nothingNew")}</div>`}
     </div>
   `;
 
@@ -398,7 +399,7 @@ function renderBillsTab(body, container) {
     b.addEventListener("click", () => {
       const d = JSON.parse(b.dataset.addRec);
       db.addRecurring({ name: d.category, category: d.category, amount: d.amount, dayOfMonth: d.dayOfMonth });
-      showToast("Added");
+      showToast(T("common.added"));
       renderPlanner(container);
     });
   });
@@ -408,7 +409,7 @@ function renderBillsTab(body, container) {
     for (const d of detected) {
       db.addRecurring({ name: d.category, category: d.category, amount: d.amount, dayOfMonth: d.dayOfMonth });
     }
-    showToast(`Added ${detected.length} recurring items`);
+    showToast(T("planner.addedRecurring", { n: detected.length }));
     renderPlanner(container);
   });
 }
@@ -427,21 +428,21 @@ function showProposal(container, { title, summary, operations }) {
   preview.innerHTML = shown.map((op) => `
     <div style="font-size:12px; padding:3px 0; color:var(--text-dim);">${escapeHtml(describeOp(op))}</div>
   `).join("") + (operations.length > shown.length
-    ? `<div style="font-size:11px; padding-top:6px;">…and ${operations.length - shown.length} more</div>` : "");
+    ? `<div style="font-size:11px; padding-top:6px;">${T("planner.andMore", { n: operations.length - shown.length })}</div>` : "");
   wrap.appendChild(preview);
 
   const row = el("div", { style: "display:flex; gap:10px;" });
-  row.appendChild(el("button", { class: "btn secondary", onClick: closeSheet }, "Cancel"));
+  row.appendChild(el("button", { class: "btn secondary", onClick: closeSheet }, T("common.cancel")));
   row.appendChild(el("button", {
     class: "btn",
     onClick: () => {
       const n = db.applyProposal(operations);
       closeSheet();
-      showToast(`Applied ${n} change${n === 1 ? "" : "s"}`);
+      showToast(T("planner.appliedChanges", { n }));
       offerUndo(container);
       renderPlanner(container);
     }
-  }, `Apply ${operations.length}`));
+  }, T("planner.applyN", { n: operations.length })));
   wrap.appendChild(row);
 
   openSheet(title, wrap);
@@ -452,11 +453,11 @@ function offerUndo(container) {
     class: "toast",
     style: "top:auto; bottom:calc(150px + env(safe-area-inset-bottom,0px)); display:flex; gap:12px; align-items:center;"
   });
-  bar.appendChild(document.createTextNode("Applied"));
-  const undo = el("button", { class: "mini-btn", style: "border-color:var(--accent); color:var(--accent);" }, "Undo");
+  bar.appendChild(document.createTextNode(T("planner.applied")));
+  const undo = el("button", { class: "mini-btn", style: "border-color:var(--accent); color:var(--accent);" }, T("planner.undo"));
   undo.addEventListener("click", () => {
     if (db.undoLastProposal()) {
-      showToast("Reverted");
+      showToast(T("planner.reverted"));
       renderPlanner(container);
     }
     bar.remove();
@@ -472,7 +473,7 @@ function describeOp(op) {
       return `+ ${fmtDate(op.date)} · ${op.category} · ${fmtMoney(op.amount)}`;
     case "delete_budget": {
       const item = db.data.budget.find((b) => b.id === op.id);
-      return item ? `− remove ${fmtDate(item.date)} · ${item.category} · ${fmtMoney(item.amount)}` : `− remove ${op.id}`;
+      return item ? `− ${T("op.remove")} ${fmtDate(item.date)} · ${item.category} · ${fmtMoney(item.amount)}` : `− ${T("op.remove")} ${op.id}`;
     }
     default:
       return op.action;

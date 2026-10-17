@@ -31,7 +31,7 @@ APP_ID = "brother"
 APP_NAME = "Finance Tracker"
 PERSONAL_NAME = "Personal"
 CACHE_PREFIX = "blank-finance-"
-CACHE_VERSION = "v8"
+CACHE_VERSION = "v9"
 
 BLANK_SEED = '''// Blank starting data.
 //
@@ -142,7 +142,7 @@ def main() -> None:
     # the other's caches when it activated.
     sw = DEST / "sw.js"
     replace_once(sw, 'const CACHE_PREFIX = "dilmurod-finance-";', f'const CACHE_PREFIX = "{CACHE_PREFIX}";')
-    replace_once(sw, 'const CACHE_NAME = CACHE_PREFIX + "v24";', f'const CACHE_NAME = CACHE_PREFIX + "{CACHE_VERSION}";')
+    replace_once(sw, 'const CACHE_NAME = CACHE_PREFIX + "v25";', f'const CACHE_NAME = CACHE_PREFIX + "{CACHE_VERSION}";')
 
     manifest = DEST / "manifest.json"
     replace_once(manifest, '"name": "Dilmurod Finance Tracker"', f'"name": "{APP_NAME}"')
@@ -153,8 +153,9 @@ def main() -> None:
     replace_once(index, 'content="Dilmurod Finance"', f'content="{APP_NAME}"')
     replace_once(index, "<h1>💰 Dilmurod Finance</h1>", f"<h1>💰 {APP_NAME}</h1>")
 
-    settings = DEST / "js" / "pages" / "settings.js"
-    replace_once(settings, "Dilmurod Finance Tracker · installed as a PWA", f"{APP_NAME} · installed as a PWA")
+    # The settings footer no longer carries a name -- it is a translated
+    # string that says only "installed as a PWA" -- so there is nothing to
+    # rebrand there any more.
 
     # The Personal page (today's plan, weekly routine, deadlines) ships with
     # the copy too. Its storage key is APP_ID-namespaced like everything else,

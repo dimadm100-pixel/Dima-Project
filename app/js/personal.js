@@ -7,17 +7,18 @@
 
 import { el, todayStr, fmtDate, daysBetween, addDays } from "./utils.js";
 import { storageKey } from "./config.js";
+import { t as T, onLangChange, getLang } from "./i18n.js";
 
 const STORAGE_KEY = storageKey("personal_v1");
 
 const DAYS = [
-  { key: "mon", label: "Monday", short: "Mon" },
-  { key: "tue", label: "Tuesday", short: "Tue" },
-  { key: "wed", label: "Wednesday", short: "Wed" },
-  { key: "thu", label: "Thursday", short: "Thu" },
-  { key: "fri", label: "Friday", short: "Fri" },
-  { key: "sat", label: "Saturday", short: "Sat" },
-  { key: "sun", label: "Sunday", short: "Sun" }
+  { key: "mon", label: "day.mon", short: "dayShort.mon" },
+  { key: "tue", label: "day.tue", short: "dayShort.tue" },
+  { key: "wed", label: "day.wed", short: "dayShort.wed" },
+  { key: "thu", label: "day.thu", short: "dayShort.thu" },
+  { key: "fri", label: "day.fri", short: "dayShort.fri" },
+  { key: "sat", label: "day.sat", short: "dayShort.sat" },
+  { key: "sun", label: "day.sun", short: "dayShort.sun" }
 ];
 const DAY_KEYS = DAYS.map((d) => d.key);
 // Date#getDay() counts from Sunday; the UI runs Monday-first.
@@ -25,7 +26,7 @@ const DAY_KEY_BY_JS_INDEX = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
 
 const todayDayKey = () => DAY_KEY_BY_JS_INDEX[new Date().getDay()];
 const tomorrowDayKey = () => DAY_KEY_BY_JS_INDEX[(new Date().getDay() + 1) % 7];
-const dayLabel = (key) => (DAYS.find((d) => d.key === key) || {}).label || key;
+const dayLabel = (key) => { const d = DAYS.find((x) => x.key === key); return d ? T(d.label) : key; };
 
 function uid(prefix) {
   return `${prefix}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
@@ -99,7 +100,7 @@ function save() {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
   } catch (e) {
     console.error("Could not save personal data.", e);
-    showToast("Couldn't save — storage is full or blocked.");
+    showToast(T("personal.saveFailed"));
   }
 }
 
@@ -141,14 +142,14 @@ function closeSheet() {
   document.body.style.overflow = "";
 }
 
-function confirmAction(message, onConfirm, confirmLabel = "Delete") {
+function confirmAction(message, onConfirm, confirmLabel = null) {
   const wrap = el("div", {});
   wrap.appendChild(el("p", { style: "color: var(--text-dim); font-size: 14px; margin-bottom: 20px;" }, message));
   const row = el("div", { style: "display:flex; gap:10px;" });
-  row.appendChild(el("button", { class: "btn secondary", onClick: () => closeSheet() }, "Cancel"));
+  row.appendChild(el("button", { class: "btn secondary", onClick: () => closeSheet() }, T("common.cancel")));
   row.appendChild(el("button", { class: "btn danger", onClick: () => { closeSheet(); onConfirm(); } }, confirmLabel));
   wrap.appendChild(row);
-  openSheet("Are you sure?", wrap);
+  openSheet(T("common.areYouSure"), wrap);
 }
 
 function field(labelText, inputEl) {
@@ -180,8 +181,8 @@ function timeCell(item) {
 // Start and end side by side, so an interval reads as one field, not two.
 function timeRangeField(startEl, endEl) {
   const row = el("div", { class: "field-row" });
-  row.appendChild(field("From (optional)", startEl));
-  row.appendChild(field("To (optional)", endEl));
+  row.appendChild(field(T("personal.fromOptional"), startEl));
+  row.appendChild(field(T("personal.toOptional"), endEl));
   return row;
 }
 
@@ -230,9 +231,9 @@ function sameSlot(a, b) {
 }
 
 function quickAdd(list, placeholder) {
-  const timeInput = el("input", { type: "time", "aria-label": "Start time (optional)" });
-  const endInput = el("input", { type: "time", "aria-label": "End time (optional)" });
-  const textInput = el("input", { type: "text", class: "grow", placeholder, "aria-label": "Task", autocomplete: "off" });
+  const timeInput = el("input", { type: "time", "aria-label": T("personal.startTime") });
+  const endInput = el("input", { type: "time", "aria-label": T("personal.endTime") });
+  const textInput = el("input", { type: "text", class: "grow", placeholder, "aria-label": T("personal.task"), autocomplete: "off" });
   const submit = () => {
     const text = textInput.value.trim();
     if (!text) { textInput.focus(); return; }
@@ -260,7 +261,7 @@ function dayRow(item, i, list, { checkable = true, listName = "the list" } = {})
   if (checkable) {
     row.appendChild(el("button", {
       class: `p-check${item.done ? " on" : ""}`,
-      title: item.done ? "Mark as not done" : "Mark as done",
+      title: item.done ? T("personal.markNotDone") : T("personal.markDone"),
       "aria-pressed": item.done ? "true" : "false",
       onClick: () => { item.done = !item.done; commit(); }
     }, "✓"));
@@ -274,11 +275,11 @@ function dayRow(item, i, list, { checkable = true, listName = "the list" } = {})
   row.appendChild(main);
 
   const actions = el("div", { class: "row-actions" });
-  actions.appendChild(miniBtn("↑", "Move up", () => { move(list, i, -1); commit(); }, { disabled: i === 0 }));
-  actions.appendChild(miniBtn("↓", "Move down", () => { move(list, i, 1); commit(); }, { disabled: i === list.length - 1 }));
-  actions.appendChild(miniBtn("✎", "Edit", () => openItemEditor(item, list, listName)));
-  actions.appendChild(miniBtn("✕", "Delete", () => {
-    confirmAction(`Delete "${item.text}" from ${listName}?`, () => {
+  actions.appendChild(miniBtn("↑", T("personal.moveUp"), () => { move(list, i, -1); commit(); }, { disabled: i === 0 }));
+  actions.appendChild(miniBtn("↓", T("personal.moveDown"), () => { move(list, i, 1); commit(); }, { disabled: i === list.length - 1 }));
+  actions.appendChild(miniBtn("✎", T("common.edit"), () => openItemEditor(item, list, listName)));
+  actions.appendChild(miniBtn("✕", T("common.delete"), () => {
+    confirmAction(T("personal.confirmDeleteItem", { text: item.text, list: listName }), () => {
       const at = list.indexOf(item);
       if (at > -1) list.splice(at, 1);
       commit();
@@ -290,20 +291,20 @@ function dayRow(item, i, list, { checkable = true, listName = "the list" } = {})
 }
 
 function openItemEditor(item, list, listName) {
-  const text = el("input", { type: "text", value: item ? item.text : "", placeholder: "e.g. Meet the bank", autocomplete: "off" });
+  const text = el("input", { type: "text", value: item ? item.text : "", placeholder: T("personal.taskPlaceholder"), autocomplete: "off" });
   const time = el("input", { type: "time", value: item ? item.time : "" });
   const end = el("input", { type: "time", value: item ? item.endTime : "" });
-  const note = el("input", { type: "text", value: item ? item.note : "", placeholder: "Optional detail", autocomplete: "off" });
+  const note = el("input", { type: "text", value: item ? item.note : "", placeholder: T("personal.notePlaceholder"), autocomplete: "off" });
 
   const wrap = el("div", {});
-  wrap.appendChild(field("Task or appointment", text));
+  wrap.appendChild(field(T("personal.taskOrAppointment"), text));
   wrap.appendChild(timeRangeField(time, end));
-  wrap.appendChild(field("Note (optional)", note));
+  wrap.appendChild(field(T("tx.note"), note));
   wrap.appendChild(el("button", {
     class: "btn",
     onClick: () => {
       const value = text.value.trim();
-      if (!value) { showToast("Give it a name first."); return; }
+      if (!value) { showToast(T("personal.needName")); return; }
       const fields = {
         text: value,
         time: time.value || "",
@@ -315,9 +316,9 @@ function openItemEditor(item, list, listName) {
       closeSheet();
       commit();
     }
-  }, item ? "Save" : `Add to ${listName}`));
+  }, item ? T("common.save") : T("personal.addToList", { list: listName })));
 
-  openSheet(item ? "Edit task" : "New task", wrap);
+  openSheet(item ? T("personal.editTask") : T("personal.newTask"), wrap);
   setTimeout(() => text.focus(), 50);
 }
 
@@ -326,13 +327,13 @@ function planCard() {
   const done = data.plan.filter((t) => t.done).length;
 
   const head = el("div", { class: "card-head" });
-  head.appendChild(el("h2", {}, "Today's Plan"));
+  head.appendChild(el("h2", {}, T("personal.todaysPlan")));
   const headActions = el("div", { class: "head-actions" });
-  headActions.appendChild(miniBtn("＋ Add", "Add a task", () => openItemEditor(null, data.plan, "today")));
+  headActions.appendChild(miniBtn("＋ " + T("common.add"), T("personal.addTask"), () => openItemEditor(null, data.plan, "today")));
   if (data.plan.length) {
-    headActions.appendChild(miniBtn("Clear", "Clear the whole list", () => {
-      confirmAction("Clear every item in today's plan? Tomorrow, the routine and deadlines are not touched.",
-        () => { data.plan = []; commit(); showToast("Today's plan cleared."); }, "Clear");
+    headActions.appendChild(miniBtn(T("personal.clear"), T("personal.clearWholeList"), () => {
+      confirmAction(T("personal.confirmClearPlan"),
+        () => { data.plan = []; commit(); showToast(T("personal.planCleared")); }, T("personal.clear"));
     }, { danger: true }));
   }
   head.appendChild(headActions);
@@ -340,7 +341,7 @@ function planCard() {
   card.appendChild(el("p", { class: "card-sub" },
     data.plan.length
       ? `${done} of ${data.plan.length} done · clear it yourself whenever you want a fresh day.`
-      : "Whatever you're doing today. The day's routine lands here each morning; clearing it is always yours to do."));
+      : T("personal.planHint")));
 
   if (data.plan.length) {
     const bar = el("div", { class: "progress-bar", style: "margin-bottom: 6px;" });
@@ -349,12 +350,12 @@ function planCard() {
   }
 
   if (!data.plan.length) {
-    card.appendChild(el("div", { class: "empty-state" }, "Nothing planned yet. Add the first thing below."));
+    card.appendChild(el("div", { class: "empty-state" }, T("personal.nothingPlanned")));
   } else {
     data.plan.forEach((task, i) => card.appendChild(dayRow(task, i, data.plan, { listName: "today's plan" })));
   }
 
-  card.appendChild(quickAdd(data.plan, "Add a task…"));
+  card.appendChild(quickAdd(data.plan, T("personal.addTaskPlaceholder")));
   return card;
 }
 
@@ -366,21 +367,21 @@ function tomorrowCard() {
   const dayName = dayLabel(tomorrowDayKey());
 
   const head = el("div", { class: "card-head" });
-  const title = el("h2", {}, "Tomorrow");
+  const title = el("h2", {}, T("personal.tomorrow"));
   title.appendChild(el("span", { class: "badge mute", style: "margin-left: 8px;" }, dayName));
   head.appendChild(title);
   const headActions = el("div", { class: "head-actions" });
-  headActions.appendChild(miniBtn("＋ Add", "Add something for tomorrow", () => openItemEditor(null, data.tomorrow, "tomorrow")));
+  headActions.appendChild(miniBtn("＋ " + T("common.add"), T("personal.addTomorrow"), () => openItemEditor(null, data.tomorrow, "tomorrow")));
   if (data.tomorrow.length) {
-    headActions.appendChild(miniBtn("Clear", "Clear tomorrow's list", () => {
-      confirmAction("Clear everything set aside for tomorrow?",
-        () => { data.tomorrow = []; commit(); showToast("Tomorrow cleared."); }, "Clear");
+    headActions.appendChild(miniBtn(T("personal.clear"), T("personal.clearTomorrow"), () => {
+      confirmAction(T("personal.confirmClearTomorrow"),
+        () => { data.tomorrow = []; commit(); showToast(T("personal.tomorrowCleared")); }, T("personal.clear"));
     }, { danger: true }));
   }
   head.appendChild(headActions);
   card.appendChild(head);
   card.appendChild(el("p", { class: "card-sub" },
-    `Set aside for ${dayName}. It moves into Today's Plan when the day starts.`));
+    T("personal.setAsideFor", { day: dayName })));
 
   if (!data.tomorrow.length) {
     card.appendChild(el("div", { class: "empty-state" }, `Nothing set aside for ${dayName} yet.`));
@@ -395,7 +396,7 @@ function tomorrowCard() {
   const routineCount = data.routine.filter((r) => r.days.includes(tomorrowDayKey())).length;
   if (routineCount) {
     card.appendChild(el("p", { class: "card-foot" },
-      `Plus ${routineCount} routine item${routineCount === 1 ? "" : "s"} for ${dayName}, added automatically on the day.`));
+      T("personal.plusRoutine", { n: routineCount, day: dayName })));
   }
 
   return card;
@@ -408,19 +409,19 @@ function routineCard() {
   const today = todayDayKey();
 
   const head = el("div", { class: "card-head" });
-  head.appendChild(el("h2", {}, "Routine"));
+  head.appendChild(el("h2", {}, T("personal.routine")));
   const headActions = el("div", { class: "head-actions" });
   if (data.routine.some((r) => r.days.includes(today))) {
-    headActions.appendChild(miniBtn("Copy today →", "Copy today's routine into today's plan", copyTodayIntoPlan));
+    headActions.appendChild(miniBtn(T("personal.copyToday"), T("personal.copyTodayHint"), copyTodayIntoPlan));
   }
-  headActions.appendChild(miniBtn("＋ Add", "Add a routine item", () => openRoutineEditor(null)));
+  headActions.appendChild(miniBtn("＋ " + T("common.add"), T("personal.addRoutineItem"), () => openRoutineEditor(null)));
   head.appendChild(headActions);
   card.appendChild(head);
   card.appendChild(el("p", { class: "card-sub" },
-    "Your standing weekly schedule. Each day's items are added to that day's plan automatically, the first time you open the page that day."));
+    T("personal.routineHint")));
 
   if (!data.routine.length) {
-    card.appendChild(el("div", { class: "empty-state" }, "No routine yet. Add gym, study blocks, classes — anything that repeats weekly."));
+    card.appendChild(el("div", { class: "empty-state" }, T("personal.noRoutine")));
     return card;
   }
 
@@ -428,8 +429,8 @@ function routineCard() {
   for (const day of DAYS) {
     const items = data.routine.filter((r) => r.days.includes(day.key)).sort(byTime);
     const block = el("div", { class: `day-block${day.key === today ? " today" : ""}` });
-    const heading = el("h3", {}, day.label);
-    if (day.key === today) heading.appendChild(el("span", { class: "badge" }, "Today"));
+    const heading = el("h3", {}, T(day.label));
+    if (day.key === today) heading.appendChild(el("span", { class: "badge" }, T("common.today")));
     block.appendChild(heading);
     if (!items.length) {
       block.appendChild(el("div", { class: "empty-day" }, "—"));
@@ -454,9 +455,9 @@ function routineRow(item) {
   row.appendChild(main);
 
   const actions = el("div", { class: "row-actions" });
-  actions.appendChild(miniBtn("✎", "Edit", () => openRoutineEditor(item)));
-  actions.appendChild(miniBtn("✕", "Delete", () => {
-    confirmAction(`Delete "${item.text}" from the routine? It goes from every day it's on.`, () => {
+  actions.appendChild(miniBtn("✎", T("common.edit"), () => openRoutineEditor(item)));
+  actions.appendChild(miniBtn("✕", T("common.delete"), () => {
+    confirmAction(T("personal.confirmDeleteRoutine", { text: item.text }), () => {
       data.routine = data.routine.filter((r) => r.id !== item.id);
       commit();
     });
@@ -467,7 +468,7 @@ function routineRow(item) {
 }
 
 function openRoutineEditor(item) {
-  const text = el("input", { type: "text", value: item ? item.text : "", placeholder: "e.g. Gym", autocomplete: "off" });
+  const text = el("input", { type: "text", value: item ? item.text : "", placeholder: T("personal.routinePlaceholder"), autocomplete: "off" });
   const time = el("input", { type: "time", value: item ? item.time : "" });
   const end = el("input", { type: "time", value: item ? item.endTime : "" });
   const note = el("input", { type: "text", value: item ? item.note : "", placeholder: "Optional detail", autocomplete: "off" });
@@ -483,7 +484,7 @@ function openRoutineEditor(item) {
         else selected.add(day.key);
         chip.classList.toggle("active", selected.has(day.key));
       }
-    }, day.short);
+    }, T(day.short));
     chipRow.appendChild(chip);
   }
 
@@ -498,14 +499,14 @@ function openRoutineEditor(item) {
   presets.appendChild(miniBtn("Every day", "All week", () => applyPreset(DAY_KEYS)));
 
   const daysWrap = el("div", { class: "field" });
-  daysWrap.appendChild(el("label", {}, "Days"));
+  daysWrap.appendChild(el("label", {}, T("personal.days")));
   daysWrap.appendChild(chipRow);
   daysWrap.appendChild(presets);
 
   const wrap = el("div", {});
-  wrap.appendChild(field("What is it", text));
+  wrap.appendChild(field(T("personal.whatIsIt"), text));
   wrap.appendChild(timeRangeField(time, end));
-  wrap.appendChild(field("Note (optional)", note));
+  wrap.appendChild(field(T("tx.note"), note));
   wrap.appendChild(daysWrap);
   wrap.appendChild(el("button", {
     class: "btn",
@@ -513,7 +514,7 @@ function openRoutineEditor(item) {
     onClick: () => {
       const value = text.value.trim();
       if (!value) { showToast("Give it a name first."); return; }
-      if (!selected.size) { showToast("Pick at least one day."); return; }
+      if (!selected.size) { showToast(T("personal.needDay")); return; }
       const days = DAY_KEYS.filter((k) => selected.has(k));
       if (item) {
         item.text = value;
@@ -534,9 +535,9 @@ function openRoutineEditor(item) {
       closeSheet();
       commit();
     }
-  }, item ? "Save" : "Add to routine"));
+  }, item ? T("common.save") : T("personal.addToRoutine")));
 
-  openSheet(item ? "Edit routine item" : "New routine item", wrap);
+  openSheet(item ? T("personal.editRoutine") : T("personal.newRoutine"), wrap);
   setTimeout(() => text.focus(), 50);
 }
 
@@ -585,8 +586,8 @@ function copyTodayIntoPlan() {
   data.plan.push(...items);
   commit();
   showToast(items.length
-    ? `Added ${items.length} routine item${items.length === 1 ? "" : "s"} to today.`
-    : "Today's routine is already in the plan.");
+    ? T("personal.addedRoutineToToday", { n: items.length })
+    : T("personal.routineAlreadyIn"));
 }
 
 // ---------- Deadlines ----------
@@ -598,9 +599,9 @@ function sortedDeadlines() {
 // Anything inside a week gets flagged; today or past gets the stronger red one.
 function deadlineStatus(deadline) {
   const days = daysBetween(todayStr(), deadline.date);
-  if (days < 0) return { days, tone: "overdue", badge: "danger", text: days === -1 ? "Yesterday" : `${-days} days ago` };
-  if (days === 0) return { days, tone: "overdue", badge: "danger", text: "Today" };
-  if (days === 1) return { days, tone: "soon", badge: "warn", text: "Tomorrow" };
+  if (days < 0) return { days, tone: "overdue", badge: "danger", text: days === -1 ? T("personal.yesterday") : T("personal.daysAgo", { n: -days }) };
+  if (days === 0) return { days, tone: "overdue", badge: "danger", text: T("common.today") };
+  if (days === 1) return { days, tone: "soon", badge: "warn", text: T("personal.tomorrow") };
   if (days <= 7) return { days, tone: "soon", badge: "warn", text: `In ${days} days` };
   return { days, tone: "", badge: "mute", text: `In ${days} days` };
 }
@@ -611,18 +612,18 @@ function deadlinesCard() {
   const soon = list.filter((d) => deadlineStatus(d).days <= 7).length;
 
   const head = el("div", { class: "card-head" });
-  head.appendChild(el("h2", {}, "Notifications & Deadlines"));
+  head.appendChild(el("h2", {}, T("personal.deadlines")));
   const headActions = el("div", { class: "head-actions" });
-  headActions.appendChild(miniBtn("＋ Add", "Add a deadline", () => openDeadlineEditor(null)));
+  headActions.appendChild(miniBtn("＋ " + T("common.add"), T("personal.addDeadline"), () => openDeadlineEditor(null)));
   head.appendChild(headActions);
   card.appendChild(head);
   card.appendChild(el("p", { class: "card-sub" },
     list.length
-      ? `Soonest first. ${soon ? `${soon} within the next 7 days (or already due).` : "Nothing due in the next 7 days."}`
-      : "Bills, exam dates, application deadlines — anything with a date you don't want to miss."));
+      ? (soon ? T("personal.soonestWithin", { n: soon }) : T("personal.soonestNone"))
+      : T("personal.deadlinesHint")));
 
   if (!list.length) {
-    card.appendChild(el("div", { class: "empty-state" }, "No deadlines saved yet."));
+    card.appendChild(el("div", { class: "empty-state" }, T("personal.noDeadlines")));
     return card;
   }
 
@@ -645,9 +646,9 @@ function deadlineRow(deadline) {
   row.appendChild(main);
 
   const actions = el("div", { class: "row-actions" });
-  actions.appendChild(miniBtn("✎", "Edit", () => openDeadlineEditor(deadline)));
-  actions.appendChild(miniBtn("✕", "Delete", () => {
-    confirmAction(`Delete the deadline "${deadline.title}"?`, () => {
+  actions.appendChild(miniBtn("✎", T("common.edit"), () => openDeadlineEditor(deadline)));
+  actions.appendChild(miniBtn("✕", T("common.delete"), () => {
+    confirmAction(T("personal.confirmDeleteDeadline", { title: deadline.title }), () => {
       data.deadlines = data.deadlines.filter((d) => d.id !== deadline.id);
       commit();
     });
@@ -658,20 +659,20 @@ function deadlineRow(deadline) {
 }
 
 function openDeadlineEditor(deadline) {
-  const title = el("input", { type: "text", value: deadline ? deadline.title : "", placeholder: "e.g. Internet bill", autocomplete: "off" });
+  const title = el("input", { type: "text", value: deadline ? deadline.title : "", placeholder: T("personal.deadlinePlaceholder"), autocomplete: "off" });
   const date = el("input", { type: "date", value: deadline ? deadline.date : todayStr() });
   const note = el("input", { type: "text", value: deadline ? deadline.note : "", placeholder: "Optional detail", autocomplete: "off" });
 
   const wrap = el("div", {});
-  wrap.appendChild(field("What's due", title));
-  wrap.appendChild(field("Date", date));
-  wrap.appendChild(field("Note (optional)", note));
+  wrap.appendChild(field(T("personal.whatsDue"), title));
+  wrap.appendChild(field(T("common.date"), date));
+  wrap.appendChild(field(T("tx.note"), note));
   wrap.appendChild(el("button", {
     class: "btn",
     onClick: () => {
       const value = title.value.trim();
       if (!value) { showToast("Give it a name first."); return; }
-      if (!date.value) { showToast("Pick a date."); return; }
+      if (!date.value) { showToast(T("personal.needDate")); return; }
       if (deadline) {
         deadline.title = value;
         deadline.date = date.value;
@@ -699,23 +700,23 @@ function summary() {
   const grid = el("div", { class: "grid-3", style: "margin-bottom: 14px;" });
 
   const planStat = el("div", { class: "stat" });
-  planStat.appendChild(el("div", { class: "label" }, "Today's plan"));
+  planStat.appendChild(el("div", { class: "label" }, T("personal.todaysPlan")));
   planStat.appendChild(el("div", { class: `value${data.plan.length && done === data.plan.length ? " pos" : ""}` },
     `${done}/${data.plan.length}`));
-  planStat.appendChild(el("div", { class: "sub" }, data.plan.length ? "done" : "nothing added"));
+  planStat.appendChild(el("div", { class: "sub" }, data.plan.length ? T("personal.done") : T("personal.nothingAdded")));
   grid.appendChild(planStat);
 
   const tomorrowStat = el("div", { class: "stat" });
-  tomorrowStat.appendChild(el("div", { class: "label" }, "Tomorrow"));
+  tomorrowStat.appendChild(el("div", { class: "label" }, T("personal.tomorrow")));
   tomorrowStat.appendChild(el("div", { class: "value" }, String(data.tomorrow.length + routineTomorrow)));
-  tomorrowStat.appendChild(el("div", { class: "sub" }, `${dayLabel(tomorrowDayKey())} · ${routineTomorrow} routine`));
+  tomorrowStat.appendChild(el("div", { class: "sub" }, T("personal.nRoutine", { day: dayLabel(tomorrowDayKey()), n: routineTomorrow })));
   grid.appendChild(tomorrowStat);
 
   const deadlineStat = el("div", { class: "stat" });
-  deadlineStat.appendChild(el("div", { class: "label" }, "Next deadline"));
+  deadlineStat.appendChild(el("div", { class: "label" }, T("personal.nextDeadline")));
   deadlineStat.appendChild(el("div", { class: `value${nextStatus && nextStatus.days <= 7 ? " neg" : ""}` },
     nextStatus ? nextStatus.text : "—"));
-  deadlineStat.appendChild(el("div", { class: "sub" }, next ? next.title : "nothing scheduled"));
+  deadlineStat.appendChild(el("div", { class: "sub" }, next ? next.title : T("personal.nothingScheduled")));
   grid.appendChild(deadlineStat);
 
   return grid;
@@ -723,10 +724,29 @@ function summary() {
 
 const view = document.getElementById("view");
 
+// The Personal page draws itself rather than going through the router, so it
+// subscribes to the language change directly.
+onLangChange(() => {
+  document.documentElement.lang = getLang();
+  applyShellText();
+  render();
+});
+
+// Text that lives in personal.html rather than in this page's own markup.
+function applyShellText() {
+  const set = (sel, text) => { const n = document.querySelector(sel); if (n) n.textContent = text; };
+  set(".page-switch a[href='./index.html']", `💰 ${T("shell.finance")}`);
+  set(".page-switch a[href='./personal.html']", `🗓️ ${T("shell.personal")}`);
+  const chip = document.getElementById("today-chip");
+  if (chip) chip.textContent = `${dayLabel(todayDayKey())}, ${fmtDate(todayStr())}`;
+  const h1 = document.querySelector(".topbar h1");
+  if (h1) h1.textContent = `🗓️ ${T("shell.personal")}`;
+}
+
 function render() {
   view.innerHTML = "";
-  view.appendChild(el("h1", { class: "page-title" }, "Personal"));
-  view.appendChild(el("p", { class: "page-sub" }, "Your day, your standing routine, and what's coming up. Saved on this device only."));
+  view.appendChild(el("h1", { class: "page-title" }, T("shell.personal")));
+  view.appendChild(el("p", { class: "page-sub" }, T("personal.sub")));
   view.appendChild(summary());
   view.appendChild(planCard());
   view.appendChild(tomorrowCard());
@@ -734,8 +754,7 @@ function render() {
   view.appendChild(deadlinesCard());
 }
 
-const todayChip = document.getElementById("today-chip");
-if (todayChip) todayChip.textContent = `${dayLabel(todayDayKey())}, ${fmtDate(todayStr())}`;
+applyShellText();
 
 const started = startDay();
 render();

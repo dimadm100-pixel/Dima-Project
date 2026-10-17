@@ -25,8 +25,9 @@ Shundan keyin oddiy ilovadek ochiladi, to'liq ekran, internetsiz ham.
 
 Welcome ekrani chiqadi va 2 ta narsa so'raydi:
 
-1. **Qaysi kartada pul turadi** va **hozir qancha bor** — eng ko'p ishlatadigan kartang yoki naqd pul.
-2. **Qaysi kundan boshlab hisob yuritasan** — odatda bugun.
+1. **Tilni tanlaysan** — O'zbekcha, Русский yoki English.
+2. **Qaysi kartada pul turadi** va **hozir qancha bor** — eng ko'p ishlatadigan kartang yoki naqd pul.
+3. **Qaysi kundan boshlab hisob yuritasan** — odatda bugun.
 
 Tamom. Keyin xohlagan paytda hammasini o'zgartirsang bo'ladi, qo'rqma.
 
@@ -166,6 +167,7 @@ KATM dan ko'rgan reytingni vaqti-vaqti bilan yozib borasan. Ilova ballni, daraja
 
 "Oddiy sozlamalar" emas, muhim narsalar shu yerda:
 
+- **Til** — O'zbekcha, Русский yoki English. Butun ilova darrov o'zgaradi.
 - **Opening balance** — boshlang'ich summa va sana.
 - **Recurring transactions** — har oy takrorlanadigan to'lovlar. Bir marta yozasan, keyin **"Generate into budget (12 months)"** bilan 12 oylik byudjetga bir zumda joylaysan.
 - **AI features** — Anthropic API key va model.

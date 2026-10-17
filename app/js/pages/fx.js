@@ -1,4 +1,5 @@
 import { db } from "../db.js";
+import { t as T } from "../i18n.js";
 import {
   refreshRates, backfillHistory, historyFor, fxState, TRACKED,
   setAlert, getAlert, setUseLiveForGoals, liveUSD
@@ -21,61 +22,60 @@ export function renderFx(container) {
   const hasRates = Object.keys(f.rates || {}).length > 0;
 
   container.innerHTML = `
-    <div class="page-title">Exchange Rates</div>
-    <p class="page-sub">Official Central Bank of Uzbekistan rates.</p>
+    <div class="page-title">${T("fx.title")}</div>
+    <p class="page-sub">${T("fx.sub")}</p>
 
     ${f.lastError && !hasRates ? `
       <div class="card" style="border-color:var(--danger);">
-        <h2>Couldn't load rates</h2>
+        <h2>${T("fx.loadFailed")}</h2>
         <p style="font-size:13px; color:var(--text-dim); margin-top:-6px;">${escapeHtml(f.lastError)}</p>
-        <button class="btn secondary small" id="retry">Try again</button>
+        <button class="btn secondary small" id="retry">${T("common.tryAgain")}</button>
       </div>` : ""}
 
     ${hasRates ? TRACKED.map((ccy) => rateCard(ccy, f)).join("") : `
-      <div class="card"><div class="empty-state">No rates loaded yet. Tap refresh to fetch them.</div></div>`}
+      <div class="card"><div class="empty-state">${T("fx.noRates")}</div></div>`}
 
     <div class="card">
-      <h2>Rate history</h2>
+      <h2>${T("fx.history")}</h2>
       <div class="segmented" style="margin-bottom:12px;">
         ${[30, 90, 180].map((d) => `<button data-range="${d}" class="${range === d ? "active" : ""}">${d}d</button>`).join("")}
       </div>
       ${TRACKED.map((ccy) => historyBlock(ccy)).join("")}
       <div id="backfill-status" style="font-size:12px; color:var(--text-dim); margin-bottom:10px;"></div>
-      <button class="btn secondary small" id="backfill">Load past ${range} days</button>
+      <button class="btn secondary small" id="backfill">${T("fx.loadPast", { days: range })}</button>
     </div>
 
     <div class="card">
-      <h2>Use live rate for goals</h2>
+      <h2>${T("fx.useLiveTitle")}</h2>
       <p style="font-size:12px; color:var(--text-dim); margin-top:-6px;">
-        Your Marriage and Umrah targets are really dollar amounts. With this on, their UZS targets follow the CBU rate
-        instead of the fixed figure you set, so a weakening sum shows up straight away.
+        ${T("fx.useLiveHint")}
       </p>
       <label style="display:flex; gap:10px; align-items:center; font-size:14px; margin:12px 0;">
         <input type="checkbox" id="use-live" ${f.useLiveForGoals ? "checked" : ""} style="width:auto;">
-        <span>Track the live rate</span>
+        <span>${T("fx.trackLive")}</span>
       </label>
       ${goalImpactHTML()}
     </div>
 
     <div class="card">
-      <h2>Rate alerts</h2>
-      <p style="font-size:12px; color:var(--text-dim); margin-top:-6px;">Get a notice on your dashboard when a rate crosses one of these. Leave blank for no alert.</p>
+      <h2>${T("fx.alerts")}</h2>
+      <p style="font-size:12px; color:var(--text-dim); margin-top:-6px;">${T("fx.alertsHint")}</p>
       ${TRACKED.map((ccy) => {
         const a = getAlert(ccy);
         return `
         <div style="margin-top:14px;">
           <div style="font-size:13px; font-weight:600; margin-bottom:8px;">${ccy}</div>
           <div class="field-row">
-            <div class="field"><label>Alert if above</label><input type="number" data-alert-above="${ccy}" value="${a.above ?? ""}" placeholder="e.g. 13000"></div>
-            <div class="field"><label>Alert if below</label><input type="number" data-alert-below="${ccy}" value="${a.below ?? ""}" placeholder="e.g. 12000"></div>
+            <div class="field"><label>${T("fx.alertAbove")}</label><input type="number" data-alert-above="${ccy}" value="${a.above ?? ""}" placeholder="e.g. 13000"></div>
+            <div class="field"><label>${T("fx.alertBelow")}</label><input type="number" data-alert-below="${ccy}" value="${a.below ?? ""}" placeholder="e.g. 12000"></div>
           </div>
         </div>`;
       }).join("")}
-      <button class="btn secondary small" id="save-alerts">Save alerts</button>
+      <button class="btn secondary small" id="save-alerts">${T("fx.saveAlerts")}</button>
     </div>
 
     <p style="text-align:center; color:var(--text-dim); font-size:11px; margin-top:16px;">
-      ${f.lastFetch ? `Last updated ${fmtDate(f.lastFetch)}` : "Never updated"} · source: cbu.uz
+      ${f.lastFetch ? T("fx.lastUpdated", { date: fmtDate(f.lastFetch) }) : T("fx.neverUpdated")} · ${T("fx.source")}
     </p>
   `;
 
@@ -91,7 +91,7 @@ export function renderFx(container) {
   container.querySelector("#use-live").addEventListener("change", (e) => {
     setUseLiveForGoals(e.target.checked);
     rerender();
-    showToast(e.target.checked ? "Goals now follow the live rate" : "Goals back on your fixed rates");
+    showToast(e.target.checked ? T("fx.nowLive") : T("fx.backToFixed"));
   });
 
   container.querySelector("#save-alerts").addEventListener("click", () => {
@@ -101,7 +101,7 @@ export function renderFx(container) {
         below: container.querySelector(`[data-alert-below="${ccy}"]`).value
       });
     }
-    showToast("Alerts saved");
+    showToast(T("fx.alertsSaved"));
   });
 
   container.querySelector("#backfill").addEventListener("click", async () => {
@@ -110,19 +110,19 @@ export function renderFx(container) {
     const btn = container.querySelector("#backfill");
     const status = container.querySelector("#backfill-status");
     btn.disabled = true;
-    btn.textContent = "Loading…";
+    btn.textContent = T("fx.loading");
     try {
       const res = await backfillHistory({
         days: range,
         onProgress: (done, total) => {
-          if (status.isConnected) status.textContent = `Fetched ${done} of ${total} dates…`;
+          if (status.isConnected) status.textContent = T("fx.fetchedOf", { done, total });
         }
       });
       status.textContent = res.failed
-        ? `Loaded, but ${res.failed} of ${res.requested} dates couldn't be fetched.`
-        : `Loaded ${res.requested} dates.`;
+        ? T("fx.loadedPartial", { failed: res.failed, requested: res.requested })
+        : T("fx.loadedAll", { n: res.requested });
     } catch (e) {
-      status.textContent = "Couldn't load history.";
+      status.textContent = T("fx.historyFailed");
     } finally {
       loading = false;
       if (stillShowing(container)) renderFx(container);
@@ -139,7 +139,7 @@ async function doRefresh(container, { silent = false } = {}) {
   const res = await refreshRates({ force: true });
   loading = false;
   if (!stillShowing(container)) return;
-  if (!silent) showToast(res.ok ? "Rates updated" : "Couldn't reach cbu.uz");
+  if (!silent) showToast(res.ok ? T("fx.ratesUpdated") : T("fx.unreachable"));
   renderFx(container);
 }
 
@@ -151,12 +151,12 @@ function rateCard(ccy, f) {
   const stale = f.lastFetch !== todayStr();
   return `
     <div class="card hero-balance">
-      <div class="label">1 ${escapeHtml(ccy)}${stale ? " · cached" : ""}</div>
+      <div class="label">1 ${escapeHtml(ccy)}${stale ? " · " + T("fx.cached") : ""}</div>
       <div class="amount">${Math.round(r.rate).toLocaleString("en-US")} <small>UZS</small></div>
       <div class="sub" style="font-size:12px; color:${flat ? "var(--text-dim)" : up ? "var(--danger)" : "var(--accent)"};">
-        ${flat ? "no change" : `${up ? "▲" : "▼"} ${Math.abs(r.diff).toLocaleString("en-US")} vs previous day`}
+        ${flat ? T("fx.noChange") : `${up ? "▲" : "▼"} ${T("fx.vsPrevious", { amount: Math.abs(r.diff).toLocaleString("en-US") })}`}
       </div>
-      <div class="sub" style="font-size:11px; color:var(--text-dim); margin-top:4px;">as of ${fmtDate(r.date)}</div>
+      <div class="sub" style="font-size:11px; color:var(--text-dim); margin-top:4px;">${T("settings.asOf", { date: fmtDate(r.date) })}</div>
     </div>
   `;
 }
@@ -166,7 +166,7 @@ function historyBlock(ccy) {
   if (points.length < 2) {
     return `<div style="margin-bottom:14px;">
       <div style="font-size:12px; color:var(--text-dim); margin-bottom:4px;">${ccy}</div>
-      <div class="empty-state" style="padding:14px 8px; font-size:12px;">Not enough history yet — load it below.</div>
+      <div class="empty-state" style="padding:14px 8px; font-size:12px;">${T("fx.notEnoughHistory")}</div>
     </div>`;
   }
   const first = points[0].value;
@@ -177,7 +177,7 @@ function historyBlock(ccy) {
   return `
     <div style="margin-bottom:16px;">
       <div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:4px;">
-        <span style="font-size:12px; color:var(--text-dim);">${ccy} · last ${range} days</span>
+        <span style="font-size:12px; color:var(--text-dim);">${ccy} · ${T("fx.lastNDays", { days: range })}</span>
         <span style="font-size:12px; color:${up ? "var(--danger)" : "var(--accent)"};">
           ${up ? "+" : ""}${Math.round(change).toLocaleString("en-US")} (${pct.toFixed(1)}%)
         </span>
@@ -194,12 +194,12 @@ function historyBlock(ccy) {
 // goals, versus the fixed rate originally set.
 function goalImpactHTML() {
   const live = liveUSD();
-  if (!live) return `<p style="font-size:12px; color:var(--text-dim);">Load a rate to see the effect on your goals.</p>`;
+  if (!live) return `<p style="font-size:12px; color:var(--text-dim);">${T("fx.loadRateFirst")}</p>`;
 
   const rows = [
-    { label: "Marriage reserve", usd: db.data.goals.marriage.reserveAnnualUSD, fixed: db.data.goals.marriage.fxRate },
+    { label: T("fx.marriageReserve"), usd: db.data.goals.marriage.reserveAnnualUSD, fixed: db.data.goals.marriage.fxRate },
     {
-      label: "Umrah",
+      label: T("goals.umrah"),
       usd: db.data.goals.umrah.amountUSD * db.data.goals.umrah.people + db.data.goals.umrah.bufferUSD,
       fixed: db.data.goals.umrah.fxRate
     }
@@ -207,7 +207,7 @@ function goalImpactHTML() {
 
   return `
     <table style="margin-top:6px;">
-      <thead><tr><th>Goal</th><th class="num">At your rate</th><th class="num">At live rate</th></tr></thead>
+      <thead><tr><th>${T("planner.goal")}</th><th class="num">${T("fx.atYourRate")}</th><th class="num">${T("fx.atLiveRate")}</th></tr></thead>
       <tbody>
         ${rows.map((r) => {
           const atFixed = r.usd * r.fixed;
@@ -224,7 +224,7 @@ function goalImpactHTML() {
       </tbody>
     </table>
     <p style="font-size:11px; color:var(--text-dim); margin-top:8px;">
-      A higher UZS figure means the sum has weakened since you set your rate — the same dollar goal now costs more sum.
+      ${T("fx.weakenedNote")}
     </p>
   `;
 }

@@ -1,4 +1,5 @@
 import { db } from "../db.js";
+import { t as T } from "../i18n.js";
 import { el, todayStr } from "../utils.js";
 import { openSheet, closeSheet, field, numberInput, dateInput, selectInput, categoryField, showToast } from "../ui.js";
 import { storageKey, readWithLegacy } from "../config.js";
@@ -14,12 +15,12 @@ export function openTransactionModal({ onSaved } = {}) {
   if (!db.data.accounts.length) {
     const wrap = el("div");
     wrap.appendChild(el("p", { style: "font-size:14px; color:var(--text-dim); margin-bottom:18px;" },
-      "You need at least one account (a card, or cash) before you can log anything, so the app knows where the money moved."));
+      T("tx.needAccountBody")));
     wrap.appendChild(el("button", {
       class: "btn",
       onClick: () => { closeSheet(); window.location.hash = "#cashposition"; }
-    }, "Add an account"));
-    openSheet("No accounts yet", wrap);
+    }, T("tx.addAccount")));
+    openSheet(T("tx.noAccounts"), wrap);
     return;
   }
 
@@ -27,42 +28,42 @@ export function openTransactionModal({ onSaved } = {}) {
   const form = el("div");
 
   const segmented = el("div", { class: "segmented", style: "margin-bottom: 14px;" });
-  const expenseBtn = el("button", { type: "button", class: "active" }, "Expense");
-  const incomeBtn = el("button", { type: "button" }, "Income");
-  const transferBtn = el("button", { type: "button" }, "Transfer");
+  const expenseBtn = el("button", { type: "button", class: "active" }, T("common.expense"));
+  const incomeBtn = el("button", { type: "button" }, T("common.income"));
+  const transferBtn = el("button", { type: "button" }, T("tx.transfer"));
   segmented.appendChild(expenseBtn);
   segmented.appendChild(incomeBtn);
   segmented.appendChild(transferBtn);
   form.appendChild(segmented);
 
   const amountInput = numberInput({ placeholder: "0", autofocus: true, min: "0" });
-  form.appendChild(field("Amount (UZS)", amountInput));
+  form.appendChild(field(T("common.amount"), amountInput));
 
   const dateEl = dateInput({ value: todayStr() });
-  form.appendChild(field("Date", dateEl));
+  form.appendChild(field(T("common.date"), dateEl));
 
   // --- expense / income fields ---
-  const { wrap: categoryWrap, input: categoryInput, refresh: refreshCategories } = categoryField("Category", "expense");
+  const { wrap: categoryWrap, input: categoryInput, refresh: refreshCategories } = categoryField(T("common.category"), "expense");
   form.appendChild(categoryWrap);
 
   const accountOptions = db.data.accounts.map((a) => ({ value: a.id, label: a.name }));
   const accountSelect = selectInput(accountOptions, { value: lastAccountId() });
-  const accountWrap = field("Account", accountSelect);
+  const accountWrap = field(T("tx.account"), accountSelect);
   form.appendChild(accountWrap);
 
   // --- transfer fields ---
   const fromSelect = selectInput(accountOptions, { value: lastAccountId() });
-  const fromWrap = field("From account", fromSelect);
+  const fromWrap = field(T("tx.fromAccount"), fromSelect);
   fromWrap.style.display = "none";
   form.appendChild(fromWrap);
 
   const toSelect = selectInput(accountOptions, { value: accountOptions[1]?.value || accountOptions[0].value });
-  const toWrap = field("To account", toSelect);
+  const toWrap = field(T("tx.toAccount"), toSelect);
   toWrap.style.display = "none";
   form.appendChild(toWrap);
 
-  const noteInput = el("input", { type: "text", placeholder: "e.g. lunch with friends" });
-  form.appendChild(field("Note (optional)", noteInput));
+  const noteInput = el("input", { type: "text", placeholder: T("tx.notePlaceholder") });
+  form.appendChild(field(T("tx.note"), noteInput));
 
   function setMode(m) {
     mode = m;
@@ -85,33 +86,33 @@ export function openTransactionModal({ onSaved } = {}) {
   incomeBtn.addEventListener("click", () => setMode("income"));
   transferBtn.addEventListener("click", () => setMode("transfer"));
 
-  const saveBtn = el("button", { class: "btn", style: "margin-top: 6px;" }, "Save");
+  const saveBtn = el("button", { class: "btn", style: "margin-top: 6px;" }, T("common.save"));
   saveBtn.addEventListener("click", () => {
     const raw = parseFloat(amountInput.value);
-    if (!raw || raw <= 0) { showToast("Enter an amount greater than 0"); return; }
+    if (!raw || raw <= 0) { showToast(T("common.needAmount")); return; }
     const date = dateEl.value || todayStr();
 
     if (mode === "transfer") {
-      if (fromSelect.value === toSelect.value) { showToast("Pick two different accounts"); return; }
+      if (fromSelect.value === toSelect.value) { showToast(T("tx.needTwoAccounts")); return; }
       db.addTransfer({ date, amount: raw, fromAccountId: fromSelect.value, toAccountId: toSelect.value, note: noteInput.value.trim() });
       localStorage.setItem(LAST_ACCOUNT_KEY, fromSelect.value);
       closeSheet();
-      showToast(`Moved to ${db.accountName(toSelect.value)}`);
+      showToast(T("tx.movedTo", { account: db.accountName(toSelect.value) }));
       if (onSaved) onSaved();
       return;
     }
 
-    if (!accountSelect.value) { showToast("Pick which account this came from"); return; }
+    if (!accountSelect.value) { showToast(T("tx.needAccount")); return; }
     const category = (categoryInput.value.trim() || "other").toLowerCase();
     const amount = mode === "expense" ? -Math.abs(raw) : Math.abs(raw);
     db.addActual({ date, amount, category, note: noteInput.value.trim(), accountId: accountSelect.value });
     localStorage.setItem(LAST_ACCOUNT_KEY, accountSelect.value);
     closeSheet();
-    showToast(mode === "expense" ? "Expense logged" : "Income logged");
+    showToast(mode === "expense" ? T("tx.expenseLogged") : T("tx.incomeLogged"));
     if (onSaved) onSaved();
   });
   form.appendChild(saveBtn);
 
-  openSheet("Log a transaction", form);
+  openSheet(T("tx.title"), form);
   setTimeout(() => amountInput.focus(), 50);
 }
