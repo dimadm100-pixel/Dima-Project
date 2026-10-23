@@ -389,7 +389,11 @@ export default {
     trend: "Trend", history: "History", nothingLogged: "Nothing logged yet.",
     logScore: "+ Log a score", logScoreTitle: "Log credit score",
     confirmDelete: "Delete this entry?", score: "Score",
-    scorePlaceholder: "e.g. 720", bureau: "Source / bureau", notes: "Notes",
+    scorePlaceholder: "e.g. 350", bureau: "Source / bureau", notes: "Notes",
+    poor: "Poor",
+    bandsTitle: "What the bands mean",
+    scoreOutOf: "Score (0–{max})",
+    outOfRange: "KATM scores run from 0 to {max}. Check the number.",
     needScore: "Enter a score", scoreLogged: "Score logged"
   },
 
@@ -536,7 +540,7 @@ export default {
       goals: "Three goals — Marriage, Home, Umrah — each with its own calculator. Record what you have saved and the percentage works itself out.",
       targets: "The dates you care about (quarter ends, year end): how much net cash you planned to have by then, and how much you had.",
       specifications: "What a single figure is made of. \"Food 200,000\" → bread 20,000, oil 30,000… Add one with <strong>+ New breakdown</strong>.",
-      creditrating: "Record the score you see on KATM over time, and watch the trend.",
+      creditrating: "Record the score you see on KATM over time. It scores out of 500, so the app shows your band and letter grade (A–E) against that scale.",
       settings: "Language, opening balance, monthly recurring payments, API key, and most importantly <strong>Export / Import</strong>.",
       personal: "Through the 💰 ⇄ 🗓️ switcher at the top. Not money: today's plan, tomorrow's, your weekly routine and deadlines. Stored separately."
     },

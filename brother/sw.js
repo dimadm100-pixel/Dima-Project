@@ -3,7 +3,7 @@
 // Everything here is therefore scoped by this prefix, or each copy's worker
 // would delete the other's cache on activation and break its offline use.
 const CACHE_PREFIX = "blank-finance-";
-const CACHE_NAME = CACHE_PREFIX + "v9";
+const CACHE_NAME = CACHE_PREFIX + "v10";
 const ASSETS = [
   "./",
   "./index.html",

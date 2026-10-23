@@ -385,7 +385,11 @@ export default {
     trend: "Dinamika", history: "Tarix", nothingLogged: "Hali yozuv yo'q.",
     logScore: "+ Ball kiritish", logScoreTitle: "Kredit ballini kiritish",
     confirmDelete: "Bu yozuv o'chirilsinmi?", score: "Ball",
-    scorePlaceholder: "masalan: 720", bureau: "Manba / byuro", notes: "Izohlar",
+    scorePlaceholder: "masalan: 350", bureau: "Manba / byuro", notes: "Izohlar",
+    poor: "Past",
+    bandsTitle: "Darajalar nimani bildiradi",
+    scoreOutOf: "Ball (0–{max})",
+    outOfRange: "KATM balli 0 dan {max} gacha. Raqamni tekshiring.",
     needScore: "Ball kiriting", scoreLogged: "Ball yozildi"
   },
 
@@ -532,7 +536,7 @@ export default {
       goals: "Uchta maqsad — Uylanish, Uy, Umra — har birining o'z hisobi bilan. Yig'ilganni yozib borasiz, foiz o'zi hisoblanadi.",
       targets: "Siz uchun muhim sanalar (chorak oxiri, yil oxiri): o'sha paytga qancha sof pul rejalashtirgansiz va qancha bo'lgan.",
       specifications: "Bitta summa nimalardan iborat. «Oziq-ovqat 200 000» → non 20 000, yog' 30 000… <strong>+ Yangi tarkib</strong> tugmasi bilan qo'shiladi.",
-      creditrating: "KATM da ko'rgan ballni yozib boring va dinamikani kuzating.",
+      creditrating: "KATM da ko'rgan ballni yozib boring. Shkala 500 balldan, shuning uchun ilova darajangizni va harfingizni (A–E) shu shkalaga nisbatan ko'rsatadi.",
       settings: "Til, boshlang'ich qoldiq, oylik takrorlanuvchi to'lovlar, API kaliti va eng muhimi — <strong>ma'lumotlarni chiqarish va yuklash</strong>.",
       personal: "Yuqoridagi 💰 ⇄ 🗓️ tugmalari orqali. Pul emas: bugungi va ertangi reja, haftalik tartib va muddatlar. Alohida saqlanadi."
     },
