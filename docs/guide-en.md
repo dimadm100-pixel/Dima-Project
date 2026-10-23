@@ -159,7 +159,7 @@ Use the **+ New breakdown** button.
 
 ## 💳 Credit — credit rating
 
-Record the score you see on KATM from time to time. The app shows the score, the band (Excellent / Good / Fair) and a chart over time.
+Record the score you see on KATM from time to time. KATM scores out of **500**, so the app shows your score against that scale, its band and letter grade (A–E), and a chart over time.
 
 ## ⚙️ Settings
 

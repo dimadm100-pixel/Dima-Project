@@ -161,7 +161,7 @@ Yangi yozish uchun **+ New breakdown** tugmasi.
 
 ## 💳 Credit — kredit reyting
 
-KATM dan ko'rgan reytingni vaqti-vaqti bilan yozib borasan. Ilova ballni, darajani (Excellent / Good / Fair) va vaqt bo'yicha grafikni ko'rsatadi.
+KATM dan ko'rgan reytingni vaqti-vaqti bilan yozib borasan. KATM **500 balldan** baholaydi, shuning uchun ilova balliingni shu shkalaga nisbatan, darajasini va harfini (A–E) hamda vaqt bo'yicha grafikni ko'rsatadi.
 
 ## ⚙️ Settings — sozlamalar
 

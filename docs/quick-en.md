@@ -21,7 +21,7 @@ Five main pages sit in the bottom bar; the rest are under **More** (⋯).
 - **Goals** — three goals: Marriage, Home, Umrah, each with its own calculator.
 - **Targets** — the dates you care about: how much net cash you wanted by then, and how much you had.
 - **Specs** — what a single figure is made of. "Food 200,000" → bread 20,000, oil 30,000…
-- **Credit** — log your credit score over time and watch the trend.
+- **Credit** — log your KATM score (out of 500) over time and watch the trend.
 - **Settings** — **language (UZ / RU / ENG)**, opening balance, recurring payments, API key, and **Export (backup)**.
 
 **At the top** — the 💰 Finance ⇄ 🗓️ Personal switcher. Personal is not about money: today's plan, tomorrow's, your weekly routine and deadlines.
